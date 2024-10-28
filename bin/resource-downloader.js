@@ -62,7 +62,7 @@ const pyodideUrls = [
   "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/stack_data-0.6.3-py3-none-any.whl",
   "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/sqlite3-1.0.0.zip",
   "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/wcwidth-0.2.13-py2.py3-none-any.whl",
-  "https://files.pythonhosted.org/packages/f3/cb/ee847ea5320428f036bd2d9db399ce5553754645d72e24969be2f4b6cedd/quantstats_lumi-0.3.3-py2.py3-none-any.whl",
+  "https://github.com/Hickinvest/quantstats_lumi/raw/refs/heads/main/dist/quantstats_lumi-0.3.3-py2.py3-none-any.whl", // using our own wheel to add 30 max drawdowns
   "https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl",
   "https://files.pythonhosted.org/packages/40/44/4a5f08c96eb108af5cb50b41f76142f0afa346dfa99d5296fe7202a11854/tabulate-0.9.0-py3-none-any.whl",
   "https://files.pythonhosted.org/packages/bc/5b/b8d04f920d4be17e938a8ebad48941fbb0b97b1672897178c0d470734fd2/yfinance-0.2.48-py2.py3-none-any.whl",
