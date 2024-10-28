@@ -23,16 +23,33 @@ const downloadIfNotExists = (url, downloadDir) => {
     console.log(`${fileName} already exists. Skipping download.`);
   } else {
     const file = fs.createWriteStream(filePath);
-    https.get(url, (response) => {
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close();
-        console.log(`Downloaded ${fileName}`);
-      });
-    }).on('error', (err) => {
+    https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+      }
+    }, (response) => {
+      if (response.statusCode === 302 || response.statusCode === 301) {
+        // Handle redirects
+        https.get(response.headers.location, (redirectResponse) => {
+          redirectResponse.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            console.log(`Downloaded ${fileName}`);
+          });
+        }).on('error', handleError);
+      } else {
+        response.pipe(file);
+        file.on('finish', () => {
+          file.close();
+          console.log(`Downloaded ${fileName}`);
+        });
+      }
+    }).on('error', handleError);
+
+    function handleError(err) {
       fs.unlink(filePath, () => {});
       console.error(`Error downloading ${fileName}: ${err.message}`);
-    });
+    }
   }
 };
 
