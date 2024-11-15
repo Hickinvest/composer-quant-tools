@@ -42,9 +42,28 @@
       tooltip = document.createElement('div');
       tooltip.className = 'liveTickerTooltip';
       document.body.appendChild(tooltip);
+
       function positionTooltip(event) {
-        tooltip.style.left = `${event.pageX + 10}px`;
-        tooltip.style.top = `${event.pageY + 10}px`;
+        window.requestAnimationFrame(()=>{
+          const tooltipWidth = tooltip.offsetWidth;
+          const tooltipHeight = tooltip.offsetHeight;
+        
+          // Calculate the new position
+          let left = event.clientX + 10;
+          let top = event.clientY + 10;
+        
+          // Check for viewport boundaries
+          if (left + tooltipWidth + 10 > window.innerWidth) {
+            left = window.innerWidth - tooltipWidth - 10; // 10px padding from the right
+          }
+          if (top + tooltipHeight + 10 > window.innerHeight) {
+            top = window.innerHeight - tooltipHeight - 10; // 10px padding from the bottom
+          }
+
+          // Set the tooltip position
+          tooltip.style.left = `${left}px`;
+          tooltip.style.top = `${top}px`;
+        })
       }
       document.addEventListener('mousemove', positionTooltip);
       positionTooltip(event); // initial position
@@ -144,13 +163,21 @@
       if (!lastTickersFromElement?.length) { // are we still hovering an item?
         setToolTipVisible(false);
       } else if(eq(tickers, lastTickersFromElement)) {
-        let html = '';
+        let html = '<div class="tooltip-content grid-2-col">';
         tickers.forEach(ticker => {
           const {data} = tickerCache[ticker];
           if (data) {
-            html += `<div class="tooltip-content"><strong>${ticker}:</strong> ${data?.name || 'No data'}</div>`;
+            html += `
+              <div class="grid-item-label">
+                ${ticker}:
+              </div>
+              <div class="grid-item-value">
+                ${data?.name || 'No data'}
+              </div>
+            `;
           }
         });
+        html += '</div>';
 
         tooltip.innerHTML = html;
       }
@@ -194,6 +221,12 @@
     document.addEventListener('mousemove', debouncedCheckTicker);
     // Handle mouse click events to open the details page
     document.addEventListener('click', debouncedCheckTicker);
+    // Handle keydown events to close the tooltip
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        setToolTipVisible(false);
+      }
+    });
   }
 
   initLiveTickerTooltip();

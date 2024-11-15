@@ -1,5 +1,15 @@
+.grid-2-col {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  row-gap: 8px;
+  column-gap: 4px;
+}
+.grid-item-label {
+  font-weight: bold;
+  text-align: right;
+}
 .liveTickerTooltip {
-  position: absolute;
+  position: fixed;
   background: #fff;
   border: 1px solid #ccc;
   padding: 8px;
