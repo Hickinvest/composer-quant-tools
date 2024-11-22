@@ -116,7 +116,7 @@ function updateTableRows() {
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
     if (symphony.addedStats) {
       for (let row of rows) {
-        const nameTd = row.querySelector("td:first-child");
+        const nameTd = row.querySelector("td:first-child .truncate");
         const nameText = nameTd?.textContent?.trim?.();
         if (nameText == symphony.name) {
           updateRowStats(row, symphony.addedStats);
@@ -128,11 +128,11 @@ function updateTableRows() {
 }
 
 function extendSymphonyStatsRow(symphony) {
-  const mainTableBody = document.querySelectorAll("table.min-w-full tbody")[0];
-  const rows = mainTableBody.querySelectorAll("tr");
+  const mainTableBody = document.querySelector("main table tbody");
+  const rows = mainTableBody?.querySelectorAll("tr");
 
   for (let row of rows) {
-    const nameTd = row.querySelector("td:first-child");
+    const nameTd = row.querySelector("td:first-child .truncate");
     const nameText = nameTd?.textContent?.trim?.();
     if (nameText == symphony.name && symphony.addedStats) {
       updateRowStats(row, symphony.addedStats);
@@ -148,22 +148,14 @@ function updateRowStats(row, addedStats) {
     
     if (!cell) {
       cell = document.createElement("td");
-      cell.className = "text-sm text-dark whitespace-nowrap py-4 px-6 truncate flex items-center extra-column";
-      cell.style = "min-width: 10rem; max-width: 10rem;";
+      cell.className = "table-cell py-4 w-[140px] extra-column";
+      // cell.style = "min-width: 10rem; max-width: 10rem;";
       cell.dataset.key = key;
-      row.insertBefore(cell, row.lastElementChild);
+      row.append(cell);
     }
     
     cell.textContent = value;
   });
-
-  // Ensure the last column is the empty one
-  let lastCell = row.lastElementChild;
-  if (!lastCell.classList.contains('w-full')) {
-    lastCell = document.createElement("td");
-    lastCell.className = "w-full";
-    row.appendChild(lastCell);
-  }
 }
 
 function updateColumns(mainTable, extraColumns) {
@@ -179,9 +171,7 @@ function updateColumns(mainTable, extraColumns) {
     let th = thead.querySelector(`.extra-column[data-key="${columnName}"]`);
     if (!th) {
       th = document.createElement("th");
-      th.scope = "col";
-      th.className = "text-xs px-6 py-2 text-dark-soft text-left font-normal whitespace-nowrap align-bottom extra-column";
-      th.style = "min-width: 10rem; max-width: 10rem;";
+      th.className = "flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[140px] extra-column";
       th.setAttribute("data-sortable-type", "numeric");
       th.dataset.key = columnName;
       thead.appendChild(th);
