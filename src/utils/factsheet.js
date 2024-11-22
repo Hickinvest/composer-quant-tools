@@ -246,7 +246,7 @@ async function getSymphonyBacktest(symphonyId) {
         backtest_version: "v2",
         slippage_percent: 0,
         spread_markup: 0,
-        start_date: "1969-12-31",
+        start_date: "1990-01-01", // we were using this "1969-12-31", But that gives us a "backtest-precedes-earliest-available-data" error from the api
         end_date: new Date().toISOString().split("T")[0],
         benchmark_symphonies: [],
         // "benchmark_tickers": [
@@ -325,11 +325,12 @@ async function handleOpenFactSheet(event) {
     // log(clickedTableRowOrCell, 'clicked')
     // the a tag has the id in the href
     // with a td we need to find the id by symphony name
-    clickedTableRowOrCell = clickedTableRowOrCell?.querySelector?.("a, td");
+    // the portfolio page has a different structure and uses a truncate class on a nested div 
+    clickedTableRowOrCell = clickedTableRowOrCell?.querySelector?.("a, td, .truncate");
 
     // log(clickedTableRowOrCell, 'nested element')
 
-    if (clickedTableRowOrCell?.tagName === "TD") {
+    if (clickedTableRowOrCell?.tagName === "TD" || clickedTableRowOrCell?.classList?.contains?.('truncate')) {
       // log(await getSymphonyIdFromName(clickedTableRowOrCell?.innerText?.trim?.()))
       window.active_factsheet_symphonyId = await getSymphonyIdFromName(
         clickedTableRowOrCell?.innerText?.trim?.()

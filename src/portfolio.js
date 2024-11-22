@@ -36,7 +36,7 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
     log("extraColumns updated:", changes.addedColumns.newValue);
     extraColumns = changes.addedColumns.newValue;
     // Perform any necessary actions with the updated selected languages
-    const mainTable = document.querySelectorAll("table.min-w-full")[0];
+    const mainTable = document.querySelector("main table");
     updateColumns(mainTable, extraColumns);
     updateTableRows();
     Sortable.initTable(mainTable);
@@ -49,8 +49,8 @@ export const startObserver = async () => {
     mutationInstance,
   ) {
     const mainEl = document.getElementsByTagName("main")?.[0];
-    const mainTable = document.querySelectorAll("table.min-w-full")?.[0];
-    const mainTableContent = document.querySelectorAll("table.min-w-full td")?.[0];
+    const mainTable = document.querySelector("main table");
+    const mainTableContent = document.querySelectorAll("main table td");
     const portfolioChart = document.querySelector('[data-highcharts-chart], .border-graph-axislines');
 
     if (mainEl) {
@@ -110,7 +110,7 @@ const startSymphonyPerformanceSync = async (mainTable) => {
 };
 
 function updateTableRows() {
-  const mainTableBody = document.querySelectorAll("table.min-w-full tbody")[0];
+  const mainTableBody = document.querySelector("main table tbody");
   const rows = mainTableBody.querySelectorAll("tr");
 
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
