@@ -330,15 +330,16 @@ async function handleOpenFactSheet(event) {
 
     // log(clickedTableRowOrCell, 'nested element')
 
-    if (clickedTableRowOrCell?.tagName === "TD" || clickedTableRowOrCell?.classList?.contains?.('truncate')) {
+    if (clickedTableRowOrCell.tagName === 'DIV') {
       // log(await getSymphonyIdFromName(clickedTableRowOrCell?.innerText?.trim?.()))
+      // for the portfolio page
       window.active_factsheet_symphonyId = await getSymphonyIdFromName(
         clickedTableRowOrCell?.innerText?.trim?.()
       );
-    } else if (clickedTableRowOrCell) {
+    } else if (clickedTableRowOrCell.tagName === 'A') {
       // log(clickedTableRowOrCell?.href?.split?.('/')?.[4])
-      window.active_factsheet_symphonyId =
-        clickedTableRowOrCell?.href?.split?.("/")?.[4];
+      // for the discover page
+      window.active_factsheet_symphonyId = clickedTableRowOrCell?.href?.split?.("/")?.[4]
     } else {
       log("Could not find get dom node for symphony id");
     }
