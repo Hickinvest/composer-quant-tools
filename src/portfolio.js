@@ -111,7 +111,7 @@ const startSymphonyPerformanceSync = async (mainTable) => {
 
 function updateTableRows() {
   const mainTableBody = document.querySelector("main table tbody");
-  const rows = mainTableBody.querySelectorAll("tr");
+  const rows = mainTableBody?.querySelectorAll("tr");
 
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
     if (symphony.addedStats) {

@@ -330,13 +330,13 @@ async function handleOpenFactSheet(event) {
 
     // log(clickedTableRowOrCell, 'nested element')
 
-    if (clickedTableRowOrCell.tagName === 'DIV') {
+    if (clickedTableRowOrCell?.tagName === 'DIV') {
       // log(await getSymphonyIdFromName(clickedTableRowOrCell?.innerText?.trim?.()))
       // for the portfolio page
       window.active_factsheet_symphonyId = await getSymphonyIdFromName(
         clickedTableRowOrCell?.innerText?.trim?.()
       );
-    } else if (clickedTableRowOrCell.tagName === 'A') {
+    } else if (clickedTableRowOrCell?.tagName === 'A') {
       // log(clickedTableRowOrCell?.href?.split?.('/')?.[4])
       // for the discover page
       window.active_factsheet_symphonyId = clickedTableRowOrCell?.href?.split?.("/")?.[4]
