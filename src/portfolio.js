@@ -80,6 +80,18 @@ const startSymphonyPerformanceSync = async (mainTable) => {
     Sortable.initTable(mainTable);
   });
 
+  let isHeaderReady = false;
+  let isRowsReady = false;
+  let hasBeenClicked = false;
+
+  function checkAndClickCurrentValue() {
+    if (isHeaderReady && isRowsReady && !hasBeenClicked) {
+      hasBeenClicked = true;
+      Array.from(mainTable.querySelectorAll('th')).find(th => 
+        th.innerText.includes('Current Value')
+      )?.click?.()
+    }
+  }
 
   // this does not seem to work
   // let headTimeout;
@@ -103,10 +115,19 @@ const startSymphonyPerformanceSync = async (mainTable) => {
   ) {
     // run extendSymphonyStatsRow for each symphony but only at a max of once per second using a timeout to make sure it runs at least once per 200ms
     clearTimeout(rowObserverTimeout);
-    rowObserverTimeout = setTimeout(updateTableRows, 200);
+    rowObserverTimeout = setTimeout(() => {
+      updateTableRows();
+      mainTableBody.querySelectorAll("tr").length
+      mainTable.rows.length && (isRowsReady = true);
+      checkAndClickCurrentValue();
+    }, 200);
     log("rowObserver triggered");
   });
   rowObserver.observe(mainTableBody, { childList: true, subtree: true });
+
+  // Set header ready after initial setup
+  isHeaderReady = true;
+  checkAndClickCurrentValue();
 };
 
 function updateTableRows() {
