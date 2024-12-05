@@ -318,33 +318,69 @@ async function getSymphonyIdFromName(symphonyName) {
   return symphony.id;
 }
 
+// Helper function to get React props from main world
+function getReactProps(selector, propSelector) {
+  return new Promise((resolve, reject) => {
+    const messageId = Date.now().toString();
+    
+    // Listen for response from main world
+    const listener = function(event) {
+      if (event.data.type === 'REACT_PROPS_RESULT' && event.data.id === messageId) {
+        window.removeEventListener('message', listener);
+        if (event.data.error) {
+          reject(new Error(event.data.error));
+        } else {
+          resolve(event.data.data);
+        }
+      }
+    };
+    
+    window.addEventListener('message', listener);
+    
+    // Send request to main world
+    window.postMessage({
+      type: 'GET_REACT_PROPS',
+      element: selector,
+      propSelector: propSelector,
+      id: messageId
+    }, '*');
+  });
+}
+
 async function handleOpenFactSheet(event) {
   // Check if the clicked element or any of its parents is a tr or table cell
-  let clickedTableRowOrCell = event.target.closest(".table-cell, tr");
-  if (clickedTableRowOrCell) {
-    // log(clickedTableRowOrCell, 'clicked')
-    // the a tag has the id in the href
-    // with a td we need to find the id by symphony name
-    // the portfolio page has a different structure and uses a truncate class on a nested div 
-    clickedTableRowOrCell = clickedTableRowOrCell?.querySelector?.("a, td, .truncate");
 
-    // log(clickedTableRowOrCell, 'nested element')
+  // the a tag has the id in the href
+  // in all other cases we try to get the id from the react props using the dom node
+  let clickedTableRowOrCell = event.target.closest("a, tr");
+  // log(clickedTableRowOrCell, 'clicked')
 
-    if (clickedTableRowOrCell?.tagName === 'DIV') {
-      // log(await getSymphonyIdFromName(clickedTableRowOrCell?.innerText?.trim?.()))
-      // for the portfolio page
-      window.active_factsheet_symphonyId = await getSymphonyIdFromName(
-        clickedTableRowOrCell?.innerText?.trim?.()
-      );
-    } else if (clickedTableRowOrCell?.tagName === 'A') {
-      // log(clickedTableRowOrCell?.href?.split?.('/')?.[4])
-      // for the discover page
-      window.active_factsheet_symphonyId = clickedTableRowOrCell?.href?.split?.("/")?.[4]
-    } else {
-      log("Could not find get dom node for symphony id");
+  if (clickedTableRowOrCell?.tagName === 'A') {
+    window.active_factsheet_symphonyId = clickedTableRowOrCell?.href?.split?.("/")?.[4];
+  } else if (clickedTableRowOrCell?.tagName === 'TR') {
+    try {
+      // Add a unique class to the clicked row
+      const uniqueClass = `symphony-row-${Date.now()}`;
+      clickedTableRowOrCell.classList.add(uniqueClass);
+      
+      // Get React props from the main world using the unique class
+      const symphonyId = await getReactProps(`.${uniqueClass}`, 'child.pendingProps.row.original.id');
+      
+      // Remove the unique class after we're done
+      clickedTableRowOrCell.classList.remove(uniqueClass);
+      
+      if (symphonyId) {
+        window.active_factsheet_symphonyId = symphonyId;
+        return;
+      }
+    } catch (error) {
+      log("Error getting React props:", error);
     }
+  } else {
+    log("Could not find get dom node for symphony id");
   }
 }
+
 
 async function collectSymphonyDataForFactsheet() {
   // Attach the click event listener to the body this will collect the id of the symphony that was clicked

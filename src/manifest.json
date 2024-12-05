@@ -33,7 +33,8 @@
         "fetchAuth.js",
         "lib/jslib/lodash.min.js",
         "utils/liveTickerTooltip.js",
-        "utils/logarithmicCharts.js"
+        "utils/logarithmicCharts.js",
+        "mainWorldBridge.js"
       ],
       "world": "MAIN",
       "css": [
