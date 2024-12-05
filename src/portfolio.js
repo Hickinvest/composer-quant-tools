@@ -132,9 +132,10 @@ function extendSymphonyStatsRow(symphony) {
   const rows = mainTableBody?.querySelectorAll("tr");
 
   for (let row of rows) {
-    const nameTd = row.querySelector("td:first-child .truncate");
-    const nameText = nameTd?.textContent?.trim?.();
-    if (nameText == symphony.name && symphony.addedStats) {
+    const nameTd = row.querySelector("td:first-child a");
+    // const nameText = nameTd?.textContent?.trim?.();
+    const symphonyId = nameTd?.href?.split?.('/')?.[4]
+    if (symphonyId == symphony.id && symphony.addedStats) {
       updateRowStats(row, symphony.addedStats);
       break;
     }
@@ -148,7 +149,7 @@ function updateRowStats(row, addedStats) {
     
     if (!cell) {
       cell = document.createElement("td");
-      cell.className = "table-cell py-4 w-[140px] extra-column";
+      cell.className = "table-cell py-4 truncate w-[160px] extra-column";
       // cell.style = "min-width: 10rem; max-width: 10rem;";
       cell.dataset.key = key;
       row.append(cell);
@@ -171,10 +172,10 @@ function updateColumns(mainTable, extraColumns) {
     let th = thead.querySelector(`.extra-column[data-key="${columnName}"]`);
     if (!th) {
       th = document.createElement("th");
-      th.className = "flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[140px] extra-column";
+      th.className = "group relative flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[160px] extra-column";
       th.setAttribute("data-sortable-type", "numeric");
       th.dataset.key = columnName;
-      thead.appendChild(th);
+      thead.lastChild.before(th);
     }
     th.textContent = columnName;
   });
