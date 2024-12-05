@@ -60,7 +60,7 @@ export function addSortableJs() {
         ths = table.querySelectorAll("th");
         for (i = _i = 0, _len = ths.length; _i < _len; i = ++_i) {
           th = ths[i];
-          if (th.getAttribute("data-sortable") !== "false") {
+          if (th.getAttribute("data-sortable") !== "false" && th.classList.contains('extra-column')) {
             sortable.setupClickableTH(table, th, i);
           }
         }

@@ -352,22 +352,29 @@ async function handleOpenFactSheet(event) {
 
   // the a tag has the id in the href
   // in all other cases we try to get the id from the react props using the dom node
-  let clickedTableRowOrCell = event.target.closest("a, tr");
-  // log(clickedTableRowOrCell, 'clicked')
+  let clickedTableRow = event.target.closest("tbody tr");
+  // log(clickedTableRow, 'clicked')
 
-  if (clickedTableRowOrCell?.tagName === 'A') {
-    window.active_factsheet_symphonyId = clickedTableRowOrCell?.href?.split?.("/")?.[4];
-  } else if (clickedTableRowOrCell?.tagName === 'TR') {
+  // if the clicked element is not a table row, do nothing
+  if(!clickedTableRow) {
+    return
+  }
+
+  let clickedRowAnchor = clickedTableRow.querySelector("a");
+
+  if (clickedRowAnchor) {
+    window.active_factsheet_symphonyId = clickedRowAnchor?.href?.split?.("/")?.[4];
+  } else if (clickedTableRow?.tagName === 'TR') {
     try {
       // Add a unique class to the clicked row
       const uniqueClass = `symphony-row-${Date.now()}`;
-      clickedTableRowOrCell.classList.add(uniqueClass);
+      clickedTableRow.classList.add(uniqueClass);
       
       // Get React props from the main world using the unique class
       const symphonyId = await getReactProps(`.${uniqueClass}`, 'child.pendingProps.row.original.id');
       
       // Remove the unique class after we're done
-      clickedTableRowOrCell.classList.remove(uniqueClass);
+      clickedTableRow.classList.remove(uniqueClass);
       
       if (symphonyId) {
         window.active_factsheet_symphonyId = symphonyId;
