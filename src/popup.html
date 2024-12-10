@@ -28,8 +28,26 @@
         margin: 0;
         height: 600px;
       }
-      .select-container {
-        height: 100%;
+      .input-container {
+        margin-bottom: 20px;
+      }
+
+      .input-container-height {
+        height: calc(100% - 80px);
+      }
+
+      .api-url-container {
+        margin-bottom: 20px;
+      }
+
+      .api-url-input {
+        width: calc(100% - 20px);
+        padding: 8px;
+        margin-top: 5px;
+        background-color: #2b2b2b;
+        border: 1px solid #444444;
+        color: #e0e0e0;
+        border-radius: 4px;
       }
 
       .selectize-input.dropdown-active::before {
@@ -67,11 +85,21 @@
     </style>
   </head>
   <body>
-    <div class="select-container">
-      <label for="selectBox" class="headers-select-label"
-        >Profile Page Headers</label
-      >
-      <select id="selectBox" class="headers-select-box" multiple></select>
+    <div class="input-container-height">
+      <div class="input-container">
+        <label
+          for="selectBox"
+          class="headers-select-label"
+        >
+          Profile Page Headers
+        </label>
+        <select id="selectBox" class="headers-select-box" multiple></select>
+      </div>
+      <div class="input-container">
+        <label for="userDefinedUploadUrl">Live quant stats upload url</label>
+        <input type="text" id="userDefinedUploadUrl" class="api-url-input" placeholder="Enter API URL" />
+      </div>
+
     </div>
 
     <script src="popup.js"></script>

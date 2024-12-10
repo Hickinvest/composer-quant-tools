@@ -99,6 +99,13 @@ function saveSelectedItems() {
   );
 }
 
+function saveUserDefinedUploadUrl(url) {
+  const trimmedUrl = url.trim();
+  chrome.storage.local.set({ userDefinedUploadUrl: trimmedUrl || null }, function() {
+    console.log("User Defined Upload Url saved");
+  });
+}
+
 async function loadSelectedItems() {
   const result = await chrome.storage.local.get(["addedColumns"]);
 
@@ -106,6 +113,11 @@ async function loadSelectedItems() {
     selectedItems = new Set(result.addedColumns);
   }
   return selectedItems;
+}
+
+async function loadUserDefinedUploadUrl() {
+  const result = await chrome.storage.local.get(["userDefinedUploadUrl"]);
+  return result.userDefinedUploadUrl || '';
 }
 
 async function initHeadersChoices() {
@@ -135,4 +147,17 @@ async function initHeadersChoices() {
     selectize.setValue(Array.from(selectedItems));
   });
 }
+
+async function initUserDefinedUploadUrl() {
+  const userDefinedUploadUrl = await loadUserDefinedUploadUrl();
+  const userDefinedUploadUrlInput = document.getElementById('userDefinedUploadUrl');
+  userDefinedUploadUrlInput.value = userDefinedUploadUrl;
+  
+  userDefinedUploadUrlInput.addEventListener('change', (e) => {
+    saveUserDefinedUploadUrl(e.target.value);
+  });
+}
+
+// Initialize both components
 initHeadersChoices();
+initUserDefinedUploadUrl();

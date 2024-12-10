@@ -76,6 +76,16 @@ const startSymphonyPerformanceSync = async (mainTable) => {
     onSymphonyCallback: extendSymphonyStatsRow,
     skipCache: true,
   }).then((performanceData) => {
+    chrome.runtime.sendMessage({ 
+      action: "processSymphonies",
+      performanceData
+    }, (response) => {
+      if (response.success) {
+        log("symphony performance data processed", response.data);
+      } else {
+        log("error processing symphony performance data", response.error);
+      }
+    });
     log("all symphony stats added", performanceData);
     Sortable.initTable(mainTable);
   });
@@ -365,14 +375,15 @@ function getElementsByText(str, tag = "a") {
 }
 
 export function initPortfolio() {
+  //for now you must be on the portfolio page to start the observer
   if (window.location.pathname === "/portfolio") {
     startObserver();
   }
 
-  window.navigation.addEventListener("navigate", (event) => {
-    if (event.destination.url === "https://app.composer.trade/portfolio") {
-      startObserver();
-    }
-  });
+  // window.navigation.addEventListener("navigate", (event) => {
+  //   if (event.destination.url === "https://app.composer.trade/portfolio") {
+  //     startObserver();
+  //   }
+  // });
 
 }

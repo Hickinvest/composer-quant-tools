@@ -96,12 +96,7 @@ async function getTearsheetHtml(symphony, series_data, type, backtestData) {
       error: `Symphony_name:${symphony.name} Symphony_id:${symphony.id} Not enough data to calculate tearsheet report`,
     };
   }
-  let previousValue = series_data.deposit_adjusted_series[0];
-  series_data.returns = series_data.deposit_adjusted_series.map((point) => {
-    const thisValue = (point - previousValue) / previousValue;
-    previousValue = point;
-    return thisValue;
-  });
+  series_data.returns =  generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
 
   pyodideReadyPromise = pyodideReadyPromise || loadPyodideAndPackages();
   let pyodide = await pyodideReadyPromise;
@@ -171,12 +166,7 @@ async function getQuantStats(symphony, series_data) {
       error: `Symphony_name:${symphony.name} Symphony_id:${symphony.id} Not enough data to calculate QuantStats`,
     };
   }
-  let previousValue = series_data.deposit_adjusted_series[0];
-  series_data.returns = series_data.deposit_adjusted_series.map((point) => {
-    const thisValue = (point - previousValue) / previousValue;
-    previousValue = point;
-    return thisValue;
-  });
+  series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
 
   pyodideReadyPromise = pyodideReadyPromise || loadPyodideAndPackages();
   let pyodide = await pyodideReadyPromise;
@@ -222,6 +212,16 @@ async function getQuantStats(symphony, series_data) {
     console.error(err);
     return { error: "An error occurred: " + err.message };
   }
+}
+
+function generateReturnsArrayFromDepositAdjustedSeries(deposit_adjusted_series) {
+  let previousValue = deposit_adjusted_series[0];
+  return deposit_adjusted_series.map((point) => {
+    const thisValue = (point - previousValue) / previousValue;
+    previousValue = point;
+    return thisValue;
+  });
+
 }
 
 function openDB() {
@@ -361,6 +361,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }).catch((error) => {
         sendResponse({error});
       }).finally(resolve);
+    } else if (request.action === "processSymphonies") {
+      // Get the User Defined Upload Url from storage
+      chrome.storage.local.get(['userDefinedUploadUrl'], function(result) {
+        if (!result.userDefinedUploadUrl) {
+          console.log("No User Defined Upload Url configured, skipping processSymphonies");
+          sendResponse({ success: false, error: "No User Defined Upload Url configured" });
+          resolve();
+          return;
+        }
+
+        try {
+          fetch(result.userDefinedUploadUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              // this is the structure needed by the API
+              type: "live",
+              symphonies: request?.performanceData?.symphonyStats?.symphonies?.map?.((symphony) => ({
+                symphony,
+                backtestData: request?.performanceData?.backtestData,
+                seriesData: {
+                  ...symphony?.dailyChanges,
+                  returns: generateReturnsArrayFromDepositAdjustedSeries(symphony?.dailyChanges?.deposit_adjusted_series),
+                }
+              }))
+            }),
+          })
+        } catch (error) {
+          console.error("Error processing symphonies:", error);
+          sendResponse({ success: false, error: error.message });
+        }
+        sendResponse({ success: true, message: 'data sent' });
+        // .then((response) => {
+        //   if (response.ok) {
+        //     response.json().then((data) => {
+        //       sendResponse({ success: true, data });
+        //     });
+        //   } else {
+        //     sendResponse({ success: false, error: "Response not ok" });
+        //   }
+        // }).catch((error) => {
+        //   sendResponse({ success: false, error: error.message });
+        // }).finally(resolve);
+      });
     } else {
       sendResponse({ error: "Unknown action" });
       resolve();

@@ -10,6 +10,9 @@
     "storage",
     "alarms"
   ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "icons": {
     "16": "images/icon16.png",
     "48": "images/icon48.png",
