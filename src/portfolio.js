@@ -18,11 +18,11 @@ let extraColumns = [
   "Worst Day",  
 ];
 export const performanceData = {};
-window.symphonyTools = {
+window.composerQuantTools = {
   performanceData,
 };
 
-let symphonyPerformanceSyncActive = false;
+let syncActive = false;
 
 chrome.storage.local.get(["addedColumns"], function (result) {
   if (result?.addedColumns?.length) {
@@ -43,101 +43,77 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
   }
 });
 
-export const startObserver = async () => {
-  const observer = new MutationObserver(async function (
-    mutations,
-    mutationInstance,
-  ) {
-    const mainEl = document.getElementsByTagName("main")?.[0];
-    const mainTable = document.querySelector("main table");
-    const mainTableContent = document.querySelectorAll("main table td");
-    const portfolioChart = document.querySelector('[data-highcharts-chart], .border-graph-axislines');
+export const startInterval = async () => {
+  // Cache token on initial load
+  await getTokenAndAccount();
+  
+  const checkInterval = setInterval(async () => {
+    // Only proceed if we're on the portfolio page
+    if (window.location.pathname !== "/portfolio") {
+      return;
+    }
 
-    if (mainEl) {
-      await getTokenAndAccount(); // this is to cache the token and account
+    const mainTable = document.querySelector("main table");
+    const portfolioChart = document.querySelector('[data-highcharts-chart], .border-graph-axislines');
+    const mainTableContent = document.querySelectorAll("main table td");
+
+    // Check if already initialized
+    if (mainTable?.classList.contains('composer-quant-tools-initialized')) {
+      return;
     }
-    if (mainTable && portfolioChart && mainTableContent && !symphonyPerformanceSyncActive) {
-      symphonyPerformanceSyncActive = true;
-      startSymphonyPerformanceSync(mainTable);
+
+    // Check if DOM is ready
+    if (mainTable && portfolioChart && mainTableContent && !syncActive) {
+      syncActive = true;
+      await startSymphonyPerformanceSync(mainTable);
+      // Mark as initialized
+      mainTable.classList.add('composer-quant-tools-initialized');
+      syncActive = false;
     }
-    if (symphonyPerformanceSyncActive) {
-      symphonyPerformanceSyncActive = false;
-      mutationInstance.disconnect();
-    }
+  }, 1000); // Check every second
+
+  // Cleanup on page unload
+  window.addEventListener('unload', () => {
+    clearInterval(checkInterval);
   });
-  observer.observe(document, { childList: true, subtree: true });
 };
 
 const startSymphonyPerformanceSync = async (mainTable) => {
   const mainTableBody = mainTable.querySelectorAll("tbody")[0];
-  const mainTableHead = mainTable.querySelectorAll("thead")[0];
+  
+  // Initialize columns
   updateColumns(mainTable, extraColumns);
-  getSymphonyPerformanceInfo({
+  
+  // Initialize data
+  const data = await getSymphonyPerformanceInfo({
     onSymphonyCallback: extendSymphonyStatsRow,
     skipCache: true,
-  }).then((performanceData) => {
-    chrome.runtime.sendMessage({ 
-      action: "processSymphonies",
-      performanceData
-    }, (response) => {
-      if (response.success) {
-        log("symphony performance data processed", response.data);
-      } else {
-        log("error processing symphony performance data", response.error);
-      }
-    });
-    log("all symphony stats added", performanceData);
-    Sortable.initTable(mainTable);
   });
-
-  let isHeaderReady = false;
-  let isRowsReady = false;
-  let hasBeenClicked = false;
-
-  function checkAndClickCurrentValue() {
-    if (isHeaderReady && isRowsReady && !hasBeenClicked) {
-      hasBeenClicked = true;
-      Array.from(mainTable.querySelectorAll('th')).find(th => 
-        th.innerText.includes('Current Value')
-      )?.click?.()
+  
+  // Process data
+  chrome.runtime.sendMessage({ 
+    action: "processSymphonies",
+    performanceData: data
+  }, (response) => {
+    if (response.success) {
+      log("symphony performance data processed", response.data);
+    } else {
+      log("error processing symphony performance data", response.error);
     }
-  }
-
-  // this does not seem to work
-  // let headTimeout;
-  // const headObserver = new MutationObserver(async function (
-  //   mutations,
-  //   mutationInstance,
-  // ) {
-  //   // run extendSymphonyStatsRow for each symphony but only at a max of once per second using a timeout to make sure it runs at least once per second
-  //   clearTimeout(headTimeout);
-  //   headTimeout = setTimeout(()=> updateColumns(mainTable, extraColumns), 200);
-  //   log("headObserver triggered");
-  // });
-  // headObserver.observe(mainTableHead, { childList: true, subtree: true });
-
-
-  // rows
-  let rowObserverTimeout;
-  const rowObserver = new MutationObserver(async function (
-    mutations,
-    mutationInstance,
-  ) {
-    // run extendSymphonyStatsRow for each symphony but only at a max of once per second using a timeout to make sure it runs at least once per 200ms
-    clearTimeout(rowObserverTimeout);
-    rowObserverTimeout = setTimeout(() => {
-      updateTableRows();
-      mainTableBody.querySelectorAll("tr").length
-      mainTable.rows.length && (isRowsReady = true);
-      checkAndClickCurrentValue();
-    }, 200);
-    log("rowObserver triggered");
   });
-  rowObserver.observe(mainTableBody, { childList: true, subtree: true });
 
-  // Set header ready after initial setup
-  isHeaderReady = true;
-  checkAndClickCurrentValue();
+  // Update rows with data
+  updateTableRows();
+  
+  // Initialize sorting
+  Sortable.initTable(mainTable);
+  
+  // Sort by Current Value initially
+  Array.from(mainTable.querySelectorAll('th')).find(th => 
+    th.innerText.includes('Current Value')
+  )?.click?.();
+
+  log("all symphony stats added", performanceData);
 };
 
 function updateTableRows() {
@@ -267,7 +243,7 @@ export async function getSymphonyDailyChange(
   cacheTimeout = 0,
   timeToWaitBeforeCall = 0,
 ) {
-  const cacheKey = "symphonyPerformance-" + symphonyId;
+  const cacheKey = "composerQuantTools-" + symphonyId;
   const cachedData = localStorage.getItem(cacheKey);
 
   if (cachedData) {
@@ -379,15 +355,5 @@ function getElementsByText(str, tag = "a") {
 }
 
 export function initPortfolio() {
-  //for now you must be on the portfolio page to start the observer
-  if (window.location.pathname === "/portfolio") {
-    startObserver();
-  }
-
-  // window.navigation.addEventListener("navigate", (event) => {
-  //   if (event.destination.url === "https://app.composer.trade/portfolio") {
-  //     startObserver();
-  //   }
-  // });
-
+  startInterval();
 }
