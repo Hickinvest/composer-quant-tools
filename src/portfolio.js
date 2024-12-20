@@ -183,7 +183,9 @@ function updateRowStats(row, addedStats) {
       cell.className = "table-cell py-4 truncate w-[160px] extra-column";
       // cell.style = "min-width: 10rem; max-width: 10rem;";
       cell.dataset.key = key;
-      row.append(cell);
+      // I took this approach hoping that if the dom changes whatever the parent is to the current td's will be where we put them.
+      const rowWrapper = row.querySelector("td:last-child").parentElement;
+      rowWrapper.append(cell);
     }
     
     cell.textContent = value;
@@ -206,7 +208,9 @@ function updateColumns(mainTable, extraColumns) {
       th.className = "group relative flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[160px] extra-column";
       th.setAttribute("data-sortable-type", "numeric");
       th.dataset.key = columnName;
-      thead.lastChild.before(th);
+      // I took this approach hoping that if the dom changes whatever the parent is to the current td's will be where we put them.
+      const theadRowWrapper = thead.querySelector("th:last-child").parentElement;
+      theadRowWrapper.append(th);
     }
     th.textContent = columnName;
   });
