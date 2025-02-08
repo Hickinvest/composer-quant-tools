@@ -22,8 +22,6 @@ window.composerQuantTools = {
   performanceData,
 };
 
-let syncActive = false;
-
 chrome.storage.local.get(["addedColumns"], function (result) {
   if (result?.addedColumns?.length) {
     extraColumns = result?.addedColumns || [];
@@ -57,18 +55,52 @@ export const startInterval = async () => {
     const portfolioChart = document.querySelector('[data-highcharts-chart], .border-graph-axislines');
     const mainTableContent = document.querySelectorAll("main table td");
 
-    // Check if already initialized
-    if (mainTable?.classList.contains('composer-quant-tools-initialized')) {
+    // If table doesn't exist yet, skip this interval
+    if (!mainTable) {
       return;
     }
 
-    // Check if DOM is ready
-    if (mainTable && portfolioChart && mainTableContent && !syncActive) {
-      syncActive = true;
-      await startSymphonyPerformanceSync(mainTable);
-      // Mark as initialized
-      mainTable.classList.add('composer-quant-tools-initialized');
-      syncActive = false;
+    // Check if table was re-rendered (lost all extra columns)
+    if (mainTable.classList.contains('composer-quant-tools-initialized')) {
+      const hasAnyExtraColumns = mainTable.querySelector('.extra-column');
+      if (!hasAnyExtraColumns) {
+        // Table was re-rendered, remove initialized class to trigger re-initialization
+        mainTable.classList.remove('composer-quant-tools-initialized');
+      }
+    }
+
+    // Initial setup if not done yet
+    if (!mainTable.classList.contains('composer-quant-tools-initialized')) {
+      // Check if DOM is ready for initial setup
+      if (portfolioChart && mainTableContent) {
+        mainTable.classList.add('composer-quant-tools-initialized');
+        await startSymphonyPerformanceSync(mainTable);
+      }
+      return;
+    }
+
+    // Update rows if data exists but rows need updating
+    if (performanceData?.symphonyStats?.symphonies?.length > 0) {
+      const mainTableBody = mainTable.querySelector("tbody");
+      const rows = mainTableBody?.querySelectorAll("tr");
+      
+      // Check if we have rows to update
+      if (rows?.length > 0) {
+        // Check if any row needs updating by looking for missing extra columns
+        // or if number of extra columns doesn't match expected
+        const needsUpdate = Array.from(rows).some(row => {
+          const columnCells = row.querySelectorAll('.extra-column');
+          // Check if we're missing columns or have wrong number of columns
+          return columnCells.length !== extraColumns.length;
+        });
+
+        if (needsUpdate) {
+          // Re-initialize columns in case they were removed
+          updateColumns(mainTable, extraColumns);
+          updateTableRows();
+          Sortable.initTable(mainTable);
+        }
+      }
     }
   }, 1000); // Check every second
 
@@ -89,6 +121,11 @@ const startSymphonyPerformanceSync = async (mainTable) => {
     onSymphonyCallback: extendSymphonyStatsRow,
     skipCache: true,
   });
+
+  if (!data) {
+    log("no symphony performance data found");
+    return;
+  }
   
   // Process data
   chrome.runtime.sendMessage({ 
@@ -108,10 +145,6 @@ const startSymphonyPerformanceSync = async (mainTable) => {
   // Initialize sorting
   Sortable.initTable(mainTable);
   
-  // Sort by Current Value initially
-  Array.from(mainTable.querySelectorAll('th')).find(th => 
-    th.innerText.includes('Current Value')
-  )?.click?.();
 
   log("all symphony stats added", performanceData);
 };
@@ -123,7 +156,7 @@ function updateTableRows() {
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
     if (symphony.addedStats) {
       for (let row of rows) {
-        const nameTd = row.querySelector("td:first-child .truncate");
+        const nameTd = row.querySelector("td:first-child .truncate[href]");
         const nameText = nameTd?.textContent?.trim?.();
         if (nameText == symphony.name) {
           updateRowStats(row, symphony.addedStats);
@@ -203,39 +236,43 @@ export async function getSymphonyPerformanceInfo(options = {}) {
     }
     return performanceData;
   }
+  try {
 
-  const accountDeploys = await getAccountDeploys();
-  const symphonyStats = await getSymphonyStatsMeta();
+    const accountDeploys = await getAccountDeploys();
+    const symphonyStats = await getSymphonyStatsMeta();
 
-  performanceData.accountDeploys = accountDeploys;
-  performanceData.symphonyStats = symphonyStats;
+    performanceData.accountDeploys = accountDeploys;
+    performanceData.symphonyStats = symphonyStats;
 
-  await Promise.all(symphonyStats.symphonies.map(async (symphony) => {
-    try {
-      symphony.dailyChanges = await getSymphonyDailyChange(
-        symphony.id,
-        TwoHours,
-        200,
-      );
-      addGeneratedSymphonyStatsToSymphony(symphony, accountDeploys);
-      await addQuantstatsToSymphony(symphony, accountDeploys);
-      // find the symphony in the array and update it by id
-      const symphonyIndex = performanceData.symphonyStats.symphonies.findIndex(s => s.id === symphony.id);
-      if (symphonyIndex !== -1) {
-        performanceData.symphonyStats.symphonies[symphonyIndex] = symphony;
+    await Promise.all(symphonyStats.symphonies.map(async (symphony) => {
+      try {
+        symphony.dailyChanges = await getSymphonyDailyChange(
+          symphony.id,
+          TwoHours,
+          200,
+        );
+        addGeneratedSymphonyStatsToSymphony(symphony, accountDeploys);
+        await addQuantstatsToSymphony(symphony, accountDeploys);
+        // find the symphony in the array and update it by id
+        const symphonyIndex = performanceData.symphonyStats.symphonies.findIndex(s => s.id === symphony.id);
+        if (symphonyIndex !== -1) {
+          performanceData.symphonyStats.symphonies[symphonyIndex] = symphony;
+        }
+        onSymphonyCallback?.(symphony);
+      } catch (error) {
+        log(
+          "Error adding stats to symphony",
+          symphony?.id,
+          symphony?.name,
+          error,
+        );
       }
-      onSymphonyCallback?.(symphony);
-    } catch (error) {
-      log(
-        "Error adding stats to symphony",
-        symphony?.id,
-        symphony?.name,
-        error,
-      );
-    }
-  }));
+    }));
 
-  return performanceData;
+    return performanceData;
+  } catch (error) {
+    log("Error getting symphony performance info", error);
+  }
 }
 
 export async function getSymphonyDailyChange(
