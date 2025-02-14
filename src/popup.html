@@ -18,6 +18,7 @@
         --gray-500: #6b7280;
         --gray-700: #374151;
         --teal-500: #14b8a6;
+        --dark-grey: #5c5c5c;
       }
       body {
         font-family: Arial, sans-serif;
@@ -30,6 +31,12 @@
       }
       .input-container {
         margin-bottom: 20px;
+      }
+      .input-container label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 14px;
+        color: var(--gray-400);
       }
 
       .input-container-height {
@@ -82,26 +89,202 @@
         background: #393939;
         color: #ffffff;
       }
+
+
+
+      /* Custom tooltip styles */
+      .tooltip-container {
+        position: relative;
+        display: inline-block;
+      }
+
+      .tooltip-icon {
+        margin-left: 5px;
+        width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+      }
+      .tooltip-icon svg {
+        width: 100%;
+        height: 100%;
+        margin-top: -2px;
+      }
+      .tooltip-icon svg path {
+        stroke: var(--gray-400);
+      }
+
+      .tooltip-text {
+        visibility: hidden;
+        position: absolute;
+        background-color: var(--dark-element);
+        border: 2px solid var(--dark-grey);
+        color: var(--gray-200);
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.4;
+        white-space: normal;
+        width: 180px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 1000;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        left: -115px;
+        top: 15px;
+      }
+
+      .tooltip-container {
+        position: relative;
+      }
+
+      .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+      }
+
+      /* Smart positioning */
+      .tooltip-top .tooltip-text {
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .tooltip-bottom .tooltip-text {
+        top: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .tooltip-left .tooltip-text {
+        top: 50%;
+        right: 125%;
+        transform: translateY(-50%);
+      }
+
+      .tooltip-right .tooltip-text {
+        top: 50%;
+        left: 125%;
+        transform: translateY(-50%);
+      }
+
+      .tooltip-top .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: var(--dark-element) transparent transparent transparent;
+      }
+
+      .tooltip-bottom .tooltip-text::after {
+        content: "";
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent transparent var(--dark-element) transparent;
+      }
+
+      .tooltip-left .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 100%;
+        margin-top: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent transparent transparent var(--dark-element);
+      }
+
+      .tooltip-right .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: 100%;
+        margin-top: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: transparent var(--dark-element) transparent transparent;
+      }
     </style>
   </head>
   <body>
     <div class="input-container-height">
       <div class="input-container">
-        <label
-          for="selectBox"
-          class="headers-select-label"
-        >
-          Profile Page Headers
+        <label for="selectBox" class="headers-select-label">
+          <span class="label-text">
+            Profile Page Headers
+          </span>
+          <span class="tooltip-container">
+            <span class="tooltip-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g id="Warning / Info">
+                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </svg>
+            </span>
+            <span class="tooltip-text">Select the extra headers you want to display on the profile page. You may also drag to rearrange their order.</span>
+          </span>
         </label>
         <select id="selectBox" class="headers-select-box" multiple></select>
       </div>
       <div class="input-container">
-        <label for="userDefinedUploadUrl">Live quant stats upload url</label>
+        <label for="userDefinedUploadUrl">
+          <span class="label-text">
+            Live quant stats upload url
+          </span>
+          <span class="tooltip-container">
+            <span class="tooltip-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g id="Warning / Info">
+                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </svg>
+            </span>
+            <span class="tooltip-text">If you would like to upload your live Quantstats data to a server, you may enter the URL for your server here. If this is left blank nothing will happen.</span>
+          </span>
+        </label>
         <input type="text" id="userDefinedUploadUrl" class="api-url-input" placeholder="Enter API URL" />
       </div>
 
     </div>
 
     <script src="popup.js"></script>
+    <script>
+      function positionTooltips() {
+        const tooltips = document.querySelectorAll('.tooltip-container');
+        tooltips.forEach(tooltip => {
+          const icon = tooltip.querySelector('.tooltip-icon');
+          const text = tooltip.querySelector('.tooltip-text');
+          const rect = icon.getBoundingClientRect();
+          const spaceTop = rect.top;
+          const spaceBottom = window.innerHeight - rect.bottom;
+          const spaceLeft = rect.left;
+          const spaceRight = window.innerWidth - rect.right;
+
+          tooltip.classList.remove('tooltip-top', 'tooltip-bottom', 'tooltip-left', 'tooltip-right');
+
+          if (spaceTop > spaceBottom && spaceTop > spaceLeft && spaceTop > spaceRight) {
+            tooltip.classList.add('tooltip-top');
+          } else if (spaceBottom > spaceLeft && spaceBottom > spaceRight) {
+            tooltip.classList.add('tooltip-bottom');
+          } else if (spaceLeft > spaceRight) {
+            tooltip.classList.add('tooltip-left');
+          } else {
+            tooltip.classList.add('tooltip-right');
+          }
+        });
+      }
+
+      window.addEventListener('load', positionTooltips);
+      window.addEventListener('resize', positionTooltips);
+    </script>
   </body>
 </html>
