@@ -158,6 +158,33 @@ async function initUserDefinedUploadUrl() {
   });
 }
 
+function positionTooltips() {
+  const tooltips = document.querySelectorAll('.tooltip-container');
+  tooltips.forEach(tooltip => {
+    const icon = tooltip.querySelector('.tooltip-icon');
+    const text = tooltip.querySelector('.tooltip-text');
+    const rect = icon.getBoundingClientRect();
+    const spaceTop = rect.top;
+    const spaceBottom = window.innerHeight - rect.bottom;
+    const spaceLeft = rect.left;
+    const spaceRight = window.innerWidth - rect.right;
+
+    tooltip.classList.remove('tooltip-top', 'tooltip-bottom', 'tooltip-left', 'tooltip-right');
+
+    if (spaceTop > spaceBottom && spaceTop > spaceLeft && spaceTop > spaceRight) {
+      tooltip.classList.add('tooltip-top');
+    } else if (spaceBottom > spaceLeft && spaceBottom > spaceRight) {
+      tooltip.classList.add('tooltip-bottom');
+    } else if (spaceLeft > spaceRight) {
+      tooltip.classList.add('tooltip-left');
+    } else {
+      tooltip.classList.add('tooltip-right');
+    }
+  });
+}
+
 // Initialize both components
 initHeadersChoices();
 initUserDefinedUploadUrl();
+window.addEventListener('load', positionTooltips);
+window.addEventListener('resize', positionTooltips);
