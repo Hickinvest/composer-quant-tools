@@ -93,19 +93,40 @@ function getAccount(token) {
   return accountPromise;
 }
 
+function getAccountInfoFromLocalStorage() {
+  const selectedPortfolioType = localStorage.getItem('selectedPortfolioType');
+  const selectedPortfolioTypeData = selectedPortfolioType?.match(/\:[^\"]+\"[^\"]+\"/g)
+  const accountInfo = selectedPortfolioTypeData?.reduce((acc, item)=>{ 
+    const splitItem = item.split(' '); 
+    acc[splitItem[0].replace(':', '')] = splitItem.slice(1).join(' ').replace(/"/g, ''); 
+    return acc; 
+  }, {}) || {};
+  
+  return accountInfo;
+}
+
 function getTokenAndAccountUtil() {
   let lastAuthRequest;
   let token;
   let account;
+  let accountId;
   return async function getTokenAndAccount() {
-    if (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000) {
+    const accountInfo = getAccountInfoFromLocalStorage();
+    // get the latest account type every time and invalidate the cache if it has changed
+    const currentAccountId = accountInfo['account-id'];
+
+    if (
+      currentAccountId !== accountId || 
+      (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000)
+    ) {
+      accountId = currentAccountId;
       return {
         token,
-        account,
+        account: {account_uuid: accountId},
       };
     } else {
       token = await pollForToken();
-      account = await getAccount(token);
+      account = accountId ? {account_uuid: accountId} : await getAccount(token);
       lastAuthRequest = Date.now();
       return {
         token,
