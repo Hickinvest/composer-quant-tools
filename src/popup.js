@@ -145,6 +145,24 @@ async function initHeadersChoices() {
     window.sel = selectize;
     // Set default selected options using Selectize API
     selectize.setValue(Array.from(selectedItems));
+
+    // Upper case tickers
+    $('.ticker-input').on('input', function() {
+      this.value = this.value.toUpperCase();
+    });
+
+    $('#tickerReplaceAllButton').on('click', function() {
+      const replaceAllTickers = () => {
+        let tickers = [];
+        const tickerElements = $('.ticker-input').each((index, el)=>{
+          return tickers.push($(el).val());
+        });
+
+        // send list of tickers to background.js
+        chrome.runtime.sendMessage({ type: 'replaceAllTickers', tickers });
+      };
+      confirm('Are you sure you want to replace all tickers?') && replaceAllTickers();
+    });
   });
 }
 

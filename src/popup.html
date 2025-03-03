@@ -29,6 +29,17 @@
         margin: 0;
         height: 600px;
       }
+
+      hr {
+        border: 0;
+        border-top: 1px solid var(--gray-700);
+        margin: 20px 0;
+      }
+
+      .margin-top {
+        margin-top: 10px;
+      }
+
       .input-container {
         margin-bottom: 20px;
       }
@@ -38,23 +49,53 @@
         font-size: 14px;
         color: var(--gray-400);
       }
-
       .input-container-height {
         height: calc(100% - 80px);
       }
-
+  
+      .input-row {
+        display: flex;
+        justify-content: space-between;
+        width: calc(100% - 20px);
+      }
+      .input-row .input-container {
+        flex: 1;
+      }
+      
       .api-url-container {
         margin-bottom: 20px;
       }
 
-      .api-url-input {
-        width: calc(100% - 20px);
+      .input-field {
         padding: 8px;
         margin-top: 5px;
         background-color: #2b2b2b;
         border: 1px solid #444444;
         color: #e0e0e0;
-        border-radius: 4px;
+        border-radius: 6px;
+      }
+
+      .api-url-input {
+        width: calc(100% - 20px);
+      }
+   
+      .replace-all-button {
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 14px;
+
+        color: #fff;
+        border: 1px solid #00578d;
+
+        border-radius: 6px;
+        text-shadow: 0 1px 0 rgba(0, 51, 83, .3);
+        background-color: #1b9dec;
+        background-image: linear-gradient(to bottom, #1da7ee, #178ee9);
+        background-repeat: repeat-x;
+      }
+      .replace-all-button:active {
+        background-color: #00578d;
+        background-image: linear-gradient(to bottom, #00578d, #178ee9);
       }
 
       .selectize-input.dropdown-active::before {
@@ -88,6 +129,14 @@
       .selectize-dropdown .active:not(.selected) {
         background: #393939;
         color: #ffffff;
+      }
+
+      .label-text-small {
+        font-size: 12px;
+      }
+
+      .ticker-input {
+        max-width: 82%;        
       }
 
 
@@ -235,6 +284,9 @@
         </label>
         <select id="selectBox" class="headers-select-box" multiple></select>
       </div>
+
+      <hr />
+
       <div class="input-container">
         <label for="userDefinedUploadUrl">
           <span class="label-text">
@@ -251,8 +303,49 @@
             <span class="tooltip-text">If you would like to upload your live Quantstats data to a server, you may enter the URL for your server here. If this is left blank nothing will happen.</span>
           </span>
         </label>
-        <input type="text" id="userDefinedUploadUrl" class="api-url-input" placeholder="Enter API URL" />
+        <input type="text" id="userDefinedUploadUrl" class="input-field api-url-input" placeholder="Enter API URL" />
       </div>
+
+      <hr />
+
+      <div class="input-container">
+        <label>
+          <span class="label-text">
+            Replace a ticker in all symphonies.
+          </span>
+          <span class="tooltip-container">
+            <span class="tooltip-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g id="Warning / Info">
+                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </svg>
+            </span>
+            <span class="tooltip-text">This tool will replace a ticker with a different ticker across all symphonies.</span>
+          </span>
+        </label>
+        <div class="input-row margin-top">
+          <div class="input-container">
+            <label for="findTicker">
+              <span class="label-text-small">Find</span>
+            </label>
+            <input type="text" id="findTicker" class="input-field ticker-input"/>
+          </div>
+    
+          <div class="input-container">
+            <label for="replaceTicker">
+              <span class="label-text-small">Replace</span>
+            </label>
+            <input type="text" id="replaceTicker" class="input-field ticker-input" />
+          </div>
+        </div>
+
+        <div class="input-container">
+          <button id="tickerReplaceAllButton" class="replace-all-button">Replace All</button>
+        </div>
+      </div>
+
+      <hr />
 
     </div>
 

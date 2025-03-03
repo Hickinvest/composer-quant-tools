@@ -154,7 +154,7 @@ function updateTableRows() {
   const rows = mainTableBody?.querySelectorAll("tr");
 
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
-    if (symphony.addedStats) {
+    if (rows?.length && symphony.addedStats) {
       for (let row of rows) {
         const nameTd = row.querySelector("td:first-child .truncate[href]");
         const nameText = nameTd?.textContent?.trim?.();

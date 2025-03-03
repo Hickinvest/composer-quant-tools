@@ -407,6 +407,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         //   sendResponse({ success: false, error: error.message });
         // }).finally(resolve);
       });
+    } else if (request.action === "replaceAllTickers") {
+      const {tickers} = request;
+      console.log(tickers);
     } else {
       sendResponse({ error: "Unknown action" });
       resolve();
@@ -417,4 +420,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   processQueue();
 
   return true; // Indicates we will send a response asynchronously
-});
+});  

@@ -31,6 +31,8 @@ let accountPromise;
 
 // getAccount will poll for selectedAccount every 200ms until it is found (So it could run indefinitely if the account is never found)
 function getAccount(token) {
+  let data;
+
   if (!accountPromise) {
     accountPromise = new Promise(async (resolve) => {
       try {
@@ -42,7 +44,7 @@ function getAccount(token) {
             },
           },
         );
-        const data = await resp.json();
+        data = await resp.json();
 
         let account;
 
