@@ -4,6 +4,7 @@ import {
   addQuantstatsToSymphony,
 } from "./utils/liveSymphonyPerformance.js";
 import {log} from "./utils/logger.js";
+import { makeApiCallWithCache } from "./utils/apiUtils.js";
 
 let extraColumns = [
   "Running Days",
@@ -82,7 +83,7 @@ export const startInterval = async () => {
     // Update rows if data exists but rows need updating
     if (performanceData?.symphonyStats?.symphonies?.length > 0) {
       const mainTableBody = mainTable.querySelector("tbody");
-      const rows = mainTableBody?.querySelectorAll("tr");
+      const rows = mainTableBody?.querySelectorAll("tr .bg-sheet"); // Get all rows with data there are some that are just headers or spacer rows
       
       // Check if we have rows to update
       if (rows?.length > 0) {
@@ -202,7 +203,7 @@ function updateRowStats(row, addedStats) {
 }
 
 function updateColumns(mainTable, extraColumns) {
-  const thead = mainTable.querySelector("thead tr");
+  const theadFirstRow = mainTable?.querySelector("thead tr");
   
   // Remove extra columns that are no longer needed
   mainTable.querySelectorAll('.extra-column').forEach(element => {
@@ -211,14 +212,13 @@ function updateColumns(mainTable, extraColumns) {
 
   // Add or update columns
   extraColumns.forEach((columnName, index) => {
-    let th = thead.querySelector(`.extra-column[data-key="${columnName}"]`);
+    let th = theadFirstRow.querySelector(`.extra-column[data-key="${columnName}"]`);
     if (!th) {
       th = document.createElement("th");
       th.className = "group relative flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[160px] extra-column";
       th.setAttribute("data-sortable-type", "numeric");
       th.dataset.key = columnName;
-      // I took this approach hoping that if the dom changes whatever the parent is to the current td's will be where we put them.
-      const theadRowWrapper = thead.querySelector("th:last-child").parentElement;
+      const theadRowWrapper = theadFirstRow.querySelector("th:last-child").parentElement;
       theadRowWrapper.append(th);
     }
     th.textContent = columnName;
@@ -231,43 +231,57 @@ export async function getSymphonyPerformanceInfo(options = {}) {
   const onSymphonyCallback = options.onSymphonyCallback;
   // if the last call options are the same as the current call options and was less than 2 hours ago, return the cached data
   if (performanceDataFetchedAt >= Date.now() - TwoHours && !options.skipCache) {
-    for (const symphony of symphonyStats.symphonies) {
+    for (const symphony of performanceData.symphonyStats.symphonies) {
       onSymphonyCallback?.(symphony);
     }
     return performanceData;
   }
   try {
-
     const accountDeploys = await getAccountDeploys();
     const symphonyStats = await getSymphonyStatsMeta();
 
     performanceData.accountDeploys = accountDeploys;
     performanceData.symphonyStats = symphonyStats;
 
-    await Promise.all(symphonyStats.symphonies.map(async (symphony) => {
-      try {
-        symphony.dailyChanges = await getSymphonyDailyChange(
-          symphony.id,
-          TwoHours,
-          200,
-        );
-        addGeneratedSymphonyStatsToSymphony(symphony, accountDeploys);
-        await addQuantstatsToSymphony(symphony, accountDeploys);
-        // find the symphony in the array and update it by id
-        const symphonyIndex = performanceData.symphonyStats.symphonies.findIndex(s => s.id === symphony.id);
-        if (symphonyIndex !== -1) {
-          performanceData.symphonyStats.symphonies[symphonyIndex] = symphony;
+    // Process symphonies in batches
+    const batchSize = 5; // Process 5 symphonies at a time
+    const symphonies = [...symphonyStats.symphonies];
+    
+    // Process symphonies in batches
+    for (let i = 0; i < symphonies.length; i += batchSize) {
+      const batch = symphonies.slice(i, i + batchSize);
+      
+      // Process each batch in parallel
+      await Promise.all(batch.map(async (symphony) => {
+        try {
+          symphony.dailyChanges = await getSymphonyDailyChange(
+            symphony.id,
+            TwoHours
+          );
+          addGeneratedSymphonyStatsToSymphony(symphony, accountDeploys);
+          await addQuantstatsToSymphony(symphony, accountDeploys);
+          
+          // Update the symphony in the performanceData
+          const symphonyIndex = performanceData.symphonyStats.symphonies.findIndex(s => s.id === symphony.id);
+          if (symphonyIndex !== -1) {
+            performanceData.symphonyStats.symphonies[symphonyIndex] = symphony;
+          }
+          
+          // Call the callback if provided
+          onSymphonyCallback?.(symphony);
+        } catch (error) {
+          log(
+            "Error adding stats to symphony",
+            symphony?.id,
+            symphony?.name,
+            error,
+          );
         }
-        onSymphonyCallback?.(symphony);
-      } catch (error) {
-        log(
-          "Error adding stats to symphony",
-          symphony?.id,
-          symphony?.name,
-          error,
-        );
-      }
-    }));
+      }));
+    }
+    
+    // Update the timestamp to indicate successful data fetch
+    performanceDataFetchedAt = Date.now();
 
     return performanceData;
   } catch (error) {
@@ -281,33 +295,29 @@ export async function getSymphonyDailyChange(
   timeToWaitBeforeCall = 0,
 ) {
   const cacheKey = "composerQuantTools-" + symphonyId;
-  const cachedData = localStorage.getItem(cacheKey);
-
-  if (cachedData) {
-    const { data, timestamp } = JSON.parse(cachedData);
-    const cacheTimeoutAgo = Date.now() - cacheTimeout;
-
-    if (timestamp > cacheTimeoutAgo) {
-      return data;
-    }
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, timeToWaitBeforeCall)); // timeToWaitBeforeCall-ms delay this is 2 calls per second. we may need to decrease this for rate limiting
-
   const { token, account } = await getTokenAndAccount();
-
-  const response = await fetch(
-    `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphonies/${symphonyId}`, // symphony value over time on each day
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
+  
+  // Use the new API utility with caching
+  try {
+    const symphonyStats = await makeApiCallWithCache(
+      `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphonies/${symphonyId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    },
-  );
-
-  if (response.status !== 200) {
+      {
+        cacheKey,
+        cacheTimeout,
+      },
+      `Get symphony daily change for ${symphonyId}`
+    );
+    
+    return symphonyStats;
+  } catch (error) {
     log(
-      `Cannot load extension. symphonies/${symphonyId} endpoint returned a ${response.status} error code.`,
+      `Cannot load extension. symphonies/${symphonyId} endpoint returned an error`,
+      error
     );
     const holdings = [];
     return {
@@ -316,35 +326,31 @@ export async function getSymphonyDailyChange(
       token,
     };
   }
-
-  const symphonyStats = await response.json();
-
-  localStorage.setItem(
-    cacheKey,
-    JSON.stringify({
-      data: symphonyStats,
-      timestamp: Date.now(),
-    }),
-  );
-
-  return symphonyStats;
 }
 
 async function getAccountDeploys(status = "SUCCEEDED") {
   const { token, account } = await getTokenAndAccount();
 
-  const response = await fetch(
-    `https://trading-api.composer.trade/api/v1/deploy/accounts/${account.account_uuid}/deploys?status=${status}`, // all user initiated symphony cash allocation changes
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
+  try {
+    const symphonyStats = await makeApiCallWithCache(
+      `https://trading-api.composer.trade/api/v1/deploy/accounts/${account.account_uuid}/deploys?status=${status}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    },
-  );
-
-  if (response.status !== 200) {
+      {
+        cacheKey: `composerQuantTools-deploys-${status}`,
+        cacheTimeout: TwoHours,
+      },
+      `Get account deploys with status ${status}`
+    );
+    
+    return symphonyStats?.deploys;
+  } catch (error) {
     log(
-      `Cannot load extension. deploys endpoint returned a ${response.status} error code.`,
+      `Cannot load extension. deploys endpoint returned an error`,
+      error
     );
     const holdings = [];
     return {
@@ -353,26 +359,31 @@ async function getAccountDeploys(status = "SUCCEEDED") {
       token,
     };
   }
-
-  const symphonyStats = await response.json();
-  return symphonyStats?.deploys;
 }
 
 export async function getSymphonyStatsMeta() {
   const { token, account } = await getTokenAndAccount();
 
-  const response = await fetch(
-    `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphony-stats-meta`, // all current symphony info
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
+  try {
+    const symphonyStats = await makeApiCallWithCache(
+      `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphony-stats-meta`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    },
-  );
-
-  if (response.status !== 200) {
+      {
+        cacheKey: `composerQuantTools-symphony-stats-meta`,
+        cacheTimeout: TwoHours,
+      },
+      `Get symphony stats meta`
+    );
+    
+    return symphonyStats;
+  } catch (error) {
     log(
-      `Cannot load extension. symphony-stats endpoint returned a ${response.status} error code.`,
+      `Cannot load extension. symphony-stats endpoint returned an error`,
+      error
     );
     const holdings = [];
     return {
@@ -380,10 +391,48 @@ export async function getSymphonyStatsMeta() {
       holdings,
     };
   }
-
-  const symphonyStats = await response.json();
-  return symphonyStats;
 }
+
+// Add scroll watcher for table header
+function onScrollUpdateTableHeaderAndNav() {
+  if (window.location.pathname !== "/portfolio") {
+    return;
+  }
+  const mainTable = document.querySelector("main table");
+  const nav = document.querySelector("nav");
+  const mainTableHeader = mainTable.querySelector("thead");
+  const headerRect = mainTableHeader.getBoundingClientRect();
+  const scrollContainer = mainTable.closest('.overflow-x-scroll');
+  const stickyTopValue = 62;
+
+  const overflowXValue = parseInt(mainTableHeader.style.getPropertyValue('overflow-x'));
+  const navPosition = nav.style.getPropertyValue('position');
+  const mainTableHeaderPosition = mainTableHeader.style.getPropertyValue('position');
+
+  if (scrollContainer) {
+    if (headerRect.top <= stickyTopValue) {
+      overflowXValue !== 'unset' && scrollContainer.style.setProperty('overflow-x', 'unset', 'important');
+      navPosition !== 'fixed' && nav.style.setProperty('position', 'fixed');
+
+      if(mainTableHeaderPosition !== 'sticky') {
+        mainTableHeader.style.setProperty('position', 'sticky');
+        mainTableHeader.style.setProperty('top', `${stickyTopValue}px`);
+        mainTableHeader.style.setProperty('z-index', '400');
+      }
+    } else{
+      overflowXValue !== 'scroll' && scrollContainer.style.removeProperty('overflow-x');
+      navPosition === 'fixed' && nav.style.removeProperty('position');
+
+      if(mainTableHeaderPosition === 'sticky') {
+        mainTableHeader.style.removeProperty('position');
+        mainTableHeader.style.removeProperty('top');
+        mainTableHeader.style.removeProperty('z-index');
+      }
+    }
+  }
+};
+
+
 
 function getElementsByText(str, tag = "a") {
   return Array.prototype.slice
@@ -392,5 +441,9 @@ function getElementsByText(str, tag = "a") {
 }
 
 export function initPortfolio() {
+  // Remove existing scroll listener if any
+  window.removeEventListener('scroll', onScrollUpdateTableHeaderAndNav);
+  // Add new scroll listener
+  window.addEventListener('scroll', onScrollUpdateTableHeaderAndNav);
   startInterval();
 }

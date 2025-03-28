@@ -1,0 +1,75 @@
+/**
+ * API utilities for making rate-limited API calls
+ */
+
+import apiQueue from './apiQueue.js';
+import { log } from './logger.js';
+
+/**
+ * Make an API call with rate limiting and retries
+ * @param {string} url - The URL to call
+ * @param {Object} options - Fetch options
+ * @param {string} requestDescription - Description for logging
+ * @returns {Promise<Object>} - The response data
+ */
+export async function makeApiCall(url, options = {}, requestDescription = '') {
+  try {
+    // Use the queue to make the fetch request
+    const response = await apiQueue.fetch(url, options);
+    
+    // Parse the JSON response
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    log(`API call failed: ${requestDescription}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Make an API call with caching
+ * @param {string} url - The URL to call
+ * @param {Object} options - Fetch options
+ * @param {Object} cacheOptions - Cache options
+ * @param {string} cacheOptions.cacheKey - The key to use for caching
+ * @param {number} cacheOptions.cacheTimeout - The cache timeout in ms
+ * @param {string} requestDescription - Description for logging
+ * @returns {Promise<Object>} - The response data
+ */
+export async function makeApiCallWithCache(url, options = {}, cacheOptions = {}, requestDescription = '') {
+  const { cacheKey, cacheTimeout = 0 } = cacheOptions;
+  
+  // Check cache first if cacheKey is provided
+  if (cacheKey) {
+    const cachedData = localStorage.getItem(cacheKey);
+    if (cachedData) {
+      try {
+        const { data, timestamp } = JSON.parse(cachedData);
+        const cacheTimeoutAgo = Date.now() - cacheTimeout;
+        
+        if (timestamp > cacheTimeoutAgo) {
+          return data;
+        }
+      } catch (e) {
+        // Invalid cache data, continue with API call
+        log(`Invalid cache data for ${cacheKey}`, e);
+      }
+    }
+  }
+  
+  // Make the API call
+  const data = await makeApiCall(url, options, requestDescription);
+  
+  // Cache the result if cacheKey is provided
+  if (cacheKey) {
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({
+        data,
+        timestamp: Date.now(),
+      })
+    );
+  }
+  
+  return data;
+} 
