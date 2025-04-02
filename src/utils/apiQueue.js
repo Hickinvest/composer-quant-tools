@@ -68,8 +68,15 @@ class ApiQueue {
       
       // Execute the request
       this.executeRequest(request)
+        .catch(error => {
+          log("Error executing request", error);
+        })
         .finally(() => {
           this.activeRequests--;
+          // Check if we need to continue processing the queue
+          if (this.queue.length > 0 && this.activeRequests < this.maxConcurrent) {
+            this.processQueue();
+          }
         });
     }
     
@@ -98,6 +105,12 @@ class ApiQueue {
         // Put the request back in the queue
         this.queue.unshift(request);
       } else {
+        // Log additional information about the failure
+        if (request.retries >= this.maxRetries) {
+          log(`Maximum retries (${this.maxRetries}) reached for request, giving up`, error);
+        } else {
+          log(`Request failed with non-retryable error, giving up`, error);
+        }
         // Max retries reached or non-retryable error
         request.reject(error);
       }
@@ -122,9 +135,10 @@ class ApiQueue {
    * @returns {boolean} - Whether the request should be retried
    */
   shouldRetry(error) {
-    // Retry on network errors or rate limit errors (429)
+    // Handle network errors (no response property)
     if (!error.response) {
-      return true; // Network error
+      // For fetch API errors that don't have a response property
+      return true;
     }
     
     const status = error.response?.status;
@@ -140,16 +154,30 @@ class ApiQueue {
    */
   fetch(url, options = {}) {
     return this.enqueue(async () => {
-      const response = await fetch(url, options);
-      
-      // If response is not ok, throw an error with the response attached
-      if (!response.ok) {
-        const error = new Error(`HTTP error ${response.status}`);
-        error.response = response;
+      try {
+        const response = await fetch(url, options);
+        
+        // If response is not ok, throw an error with the response attached
+        if (!response.ok) {
+          const error = new Error(`HTTP error ${response.status}`);
+          error.response = response;
+          error.status = response.status;
+          throw error;
+        }
+        
+        return response;
+      } catch (error) {
+        // Handle network errors from fetch
+        if (!error.response && !error.status) {
+          // This is likely a network error
+          const networkError = new Error(`Network error: ${error.message}`);
+          networkError.originalError = error;
+          throw networkError;
+        }
+        
+        // Re-throw the original error
         throw error;
       }
-      
-      return response;
     });
   }
 }

@@ -17,12 +17,23 @@ export async function makeApiCall(url, options = {}, requestDescription = '') {
     // Use the queue to make the fetch request
     const response = await apiQueue.fetch(url, options);
     
-    // Parse the JSON response
-    const data = await response.json();
-    return data;
+    try {
+      // Parse the JSON response
+      const data = await response.json();
+      return data;
+    } catch (jsonError) {
+      // Handle JSON parsing errors
+      log(`JSON parsing error for ${requestDescription}:`, jsonError);
+      throw new Error(`Failed to parse JSON response for ${requestDescription}: ${jsonError.message}`);
+    }
   } catch (error) {
+    // Add more context to the error
+    const enhancedError = new Error(`API call failed: ${requestDescription} - ${error.message}`);
+    enhancedError.originalError = error;
+    enhancedError.url = url;
+    
     log(`API call failed: ${requestDescription}`, error);
-    throw error;
+    throw enhancedError;
   }
 }
 
@@ -53,23 +64,37 @@ export async function makeApiCallWithCache(url, options = {}, cacheOptions = {},
       } catch (e) {
         // Invalid cache data, continue with API call
         log(`Invalid cache data for ${cacheKey}`, e);
+        // Remove invalid cache entry
+        localStorage.removeItem(cacheKey);
       }
     }
   }
   
-  // Make the API call
-  const data = await makeApiCall(url, options, requestDescription);
-  
-  // Cache the result if cacheKey is provided
-  if (cacheKey) {
-    localStorage.setItem(
-      cacheKey,
-      JSON.stringify({
-        data,
-        timestamp: Date.now(),
-      })
-    );
+  try {
+    // Make the API call
+    const data = await makeApiCall(url, options, requestDescription);
+    
+    // Cache the result if cacheKey is provided
+    if (cacheKey && data) {
+      try {
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (cacheError) {
+        // Handle localStorage errors (e.g., quota exceeded)
+        log(`Failed to cache data for ${cacheKey}:`, cacheError);
+        // Continue without caching
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    // Log the error with more context
+    log(`API call with cache failed: ${requestDescription} for URL ${url}`, error);
+    throw error;
   }
-  
-  return data;
 } 

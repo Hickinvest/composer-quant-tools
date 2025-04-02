@@ -225,12 +225,12 @@ function updateColumns(mainTable, extraColumns) {
   });
 }
 
-const TwoHours = 2 * 60 * 60 * 1000; // this should only update once per day ish base on a normal user's usage. It could happen multiple times if multiple windows are open. or if the user is refreshing every 12 hours.
-let performanceDataFetchedAt = Date.now() - TwoHours;
+const TwelveHours = 12 * 60 * 60 * 1000; // this should only update once per day ish base on a normal user's usage. It could happen multiple times if multiple windows are open. or if the user is refreshing every 12 hours.
+let performanceDataFetchedAt = Date.now() - TwelveHours;
 export async function getSymphonyPerformanceInfo(options = {}) {
   const onSymphonyCallback = options.onSymphonyCallback;
   // if the last call options are the same as the current call options and was less than 2 hours ago, return the cached data
-  if (performanceDataFetchedAt >= Date.now() - TwoHours && !options.skipCache) {
+  if (performanceDataFetchedAt >= Date.now() - TwelveHours && !options.skipCache) {
     for (const symphony of performanceData.symphonyStats.symphonies) {
       onSymphonyCallback?.(symphony);
     }
@@ -256,7 +256,7 @@ export async function getSymphonyPerformanceInfo(options = {}) {
         try {
           symphony.dailyChanges = await getSymphonyDailyChange(
             symphony.id,
-            TwoHours
+            TwelveHours
           );
           addGeneratedSymphonyStatsToSymphony(symphony, accountDeploys);
           await addQuantstatsToSymphony(symphony, accountDeploys);
@@ -341,7 +341,7 @@ async function getAccountDeploys(status = "SUCCEEDED") {
       },
       {
         cacheKey: `composerQuantTools-deploys-${status}`,
-        cacheTimeout: TwoHours,
+        cacheTimeout: TwelveHours,
       },
       `Get account deploys with status ${status}`
     );
@@ -374,7 +374,7 @@ export async function getSymphonyStatsMeta() {
       },
       {
         cacheKey: `composerQuantTools-symphony-stats-meta`,
-        cacheTimeout: TwoHours,
+        cacheTimeout: TwelveHours,
       },
       `Get symphony stats meta`
     );
