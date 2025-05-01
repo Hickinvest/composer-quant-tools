@@ -8,7 +8,8 @@
   },
   "permissions": [
     "storage",
-    "alarms"
+    "alarms",
+    "scripting"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -35,6 +36,7 @@
       "js": [
         "fetchAuth.js",
         "lib/jslib/lodash.min.js",
+        "utils/storageAccess.js",
         "utils/liveTickerTooltip.js",
         "utils/logarithmicCharts.js",
         "mainWorldBridge.js"

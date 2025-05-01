@@ -27,7 +27,8 @@
         padding: 1rem;
         width: 20rem;
         margin: 0;
-        height: 600px;
+        min-height: 320px;
+        min-width: 360px;
       }
       .input-container {
         margin-bottom: 20px;
@@ -55,6 +56,20 @@
         border: 1px solid #444444;
         color: #e0e0e0;
         border-radius: 4px;
+      }
+
+      .checkbox-label {
+        display: flex !important;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .checkbox-label input[type="checkbox"] {
+        margin-left: 10px;
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: var(--teal-500);
       }
 
       .selectize-input.dropdown-active::before {
@@ -90,7 +105,42 @@
         color: #ffffff;
       }
 
+      /* Match selectize selections to checkbox teal color */
+      .selectize-control.multi .selectize-input [data-value] {
+        background-color: var(--teal-500);
+        border-color: var(--teal-500);
+        color: white;
+      }
+      
+      .selectize-control.multi .selectize-input [data-value].active {
+        background-color: var(--teal-500);
+        border-color: var(--teal-500);
+      }
+      
+      .selectize-dropdown .option.active {
+        background-color: rgba(20, 184, 166, 0.2);
+      }
+      
+      .selectize-input.focus {
+        border-color: var(--teal-500);
+      }
 
+      /* Style the multi-select container */
+      .selectize-control.multi .selectize-input {
+        background-color: #2b2b2b;
+        border: 1px solid #444444;
+        padding: 6px 8px;
+      }
+      
+      .selectize-control.multi .selectize-input.focus {
+        border-color: var(--teal-500);
+        box-shadow: 0 0 0 1px var(--teal-500);
+      }
+
+      .selectize-control.multi .selectize-input [data-value], 
+      .selectize-control.multi .selectize-input [data-value].active {
+        background-image: none;
+      }
 
       /* Custom tooltip styles */
       .tooltip-container {
@@ -220,7 +270,7 @@
       <div class="input-container">
         <label for="selectBox" class="headers-select-label">
           <span class="label-text">
-            Profile Page Headers
+            Portfolio Page Columns
           </span>
           <span class="tooltip-container">
             <span class="tooltip-icon">
@@ -230,11 +280,12 @@
                 </g>
               </svg>
             </span>
-            <span class="tooltip-text">Select the extra headers you want to display on the profile page. You may also drag to rearrange their order.</span>
+            <span class="tooltip-text">Select the columns you want to display on the portfolio page. You may also drag to rearrange their order.</span>
           </span>
         </label>
         <select id="selectBox" class="headers-select-box" multiple></select>
       </div>
+
       <div class="input-container">
         <label for="userDefinedUploadUrl">
           <span class="label-text">
@@ -254,6 +305,42 @@
         <input type="text" id="userDefinedUploadUrl" class="api-url-input" placeholder="Enter API URL" />
       </div>
 
+      <div class="input-container">
+        <label for="enableTooltips" class="checkbox-label">
+          <input type="checkbox" id="enableTooltips" />&nbsp;
+          <span class="label-text">
+            Enable Tooltips on Ticker Symbols
+          </span>
+          <span class="tooltip-container">
+            <span class="tooltip-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g id="Warning / Info">
+                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </svg>
+            </span>
+            <span class="tooltip-text">When enabled, tooltips describing the ticker symbol will be displayed when a ticker is hovered.</span>
+          </span>
+        </label>
+
+        <label for="enableCmdClick" class="checkbox-label">
+          <input type="checkbox" id="enableCmdClick" />&nbsp;
+          <span class="label-text">
+            Enable CMD + Click on Tickers
+          </span>
+          <span class="tooltip-container">
+            <span class="tooltip-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g id="Warning / Info">
+                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </svg>
+            </span>
+            <span class="tooltip-text">When enabled, Command + Click on a ticker symbol opens its Yahoo Finance profile page in a new tab.</span>
+          </span>
+        </label>
+      </div>
+           
     </div>
 
     <script src="popup.js"></script>

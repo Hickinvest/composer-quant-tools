@@ -1,4 +1,4 @@
-const items = [
+const columnOptions = [
   "MTD",
   "3M",
   "6M",
@@ -68,63 +68,91 @@ const items = [
   "Median Daily Return",
 ];
 
-let selectedItems = new Set([
-  "Running Days",
-  "Avg. Daily Return",
-  "MTD",
-  "3M",
-  "6M",
-  "YTD",
-  "1Y",
-  "Win Days",
-  "Best Day",
-  "Worst Day",
-]);
+// Default settings
+const defaultSettings = {
+  addedColumns: [
+    "Running Days",
+    "Avg. Daily Return",
+    "MTD",
+    "3M",
+    "6M",
+    "YTD",
+    "1Y",
+    "Win Days",
+    "Best Day",
+    "Worst Day",
+  ],
+  userDefinedUploadUrl: null,
+  enableTooltips: true,
+  enableCmdClick: true,
+};
 
-function toggleItem(lang) {
-  if (selectedItems.has(lang)) {
-    selectedItems.delete(lang);
-  } else {
-    selectedItems.add(lang);
+let currentSettings = { ...defaultSettings }; // Initialize with defaults
+
+// --- New Settings Management ---
+
+async function loadSettings(keys = null) {
+  const keysToLoad = keys || Object.keys(defaultSettings);
+  const result = await chrome.storage.local.get(keysToLoad);
+
+  // Merge loaded settings with defaults, ensuring all keys exist
+  const loadedSettings = {};
+  for (const key of keysToLoad) {
+    loadedSettings[key] = result.hasOwnProperty(key) ? result[key] : defaultSettings[key];
   }
-  saveSelectedItems();
+
+  // Update currentSettings state
+  Object.assign(currentSettings, loadedSettings);
+  return loadedSettings;
 }
 
-function saveSelectedItems() {
-  chrome.storage.local.set(
-    { addedColumns: Array.from(selectedItems) },
-    function () {
-      console.log("Selected items saved");
-    },
-  );
+async function saveSettings(settingsToSave) {
+  await chrome.storage.local.set(settingsToSave);
+  // Update currentSettings state
+  Object.assign(currentSettings, settingsToSave);
+  broadcastSettings(settingsToSave);
 }
 
-function saveUserDefinedUploadUrl(url) {
-  const trimmedUrl = url.trim();
-  chrome.storage.local.set({ userDefinedUploadUrl: trimmedUrl || null }, function() {
-    console.log("User Defined Upload Url saved");
+function broadcastSettings(changedSettings) {
+  // Keep the existing runtime message for internal extension communication
+  chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATED', settings: changedSettings }, (response) => {
+    if (chrome.runtime.lastError) {
+      // Handle potential errors, e.g., no receiving end
+      console.log("Broadcast error:", chrome.runtime.lastError.message);
+    }
+  });
+  
+  // Use postMessage to communicate with content scripts
+  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    if (tabs && tabs[0]) {
+      // Execute a script in the page that will use postMessage
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: (settingsData) => {
+          window.postMessage({
+            source: 'composer-quant-tools-extension',
+            type: 'SETTINGS_UPDATED',
+            settings: settingsData
+          }, '*');
+        },
+        args: [changedSettings]
+      }).catch(err => console.error("Error posting message:", err));
+    }
   });
 }
 
-async function loadSelectedItems() {
-  const result = await chrome.storage.local.get(["addedColumns"]);
 
-  if (result.addedColumns) {
-    selectedItems = new Set(result.addedColumns);
-  }
-  return selectedItems;
-}
+// -------------------
 
-async function loadUserDefinedUploadUrl() {
-  const result = await chrome.storage.local.get(["userDefinedUploadUrl"]);
-  return result.userDefinedUploadUrl || '';
-}
+
+let selectizeInstance = null; // Keep track of the selectize instance
 
 async function initHeadersChoices() {
-  await loadSelectedItems();
+  // Settings are now loaded globally at startup
+  const initialColumns = currentSettings.addedColumns || defaultSettings.addedColumns;
 
   $(document).ready(function () {
-    var selectize = $(".headers-select-box").selectize({
+    selectizeInstance = $(".headers-select-box").selectize({
       plugins: ["remove_button", "drag_drop"],
       persist: false,
       valueField: "value",
@@ -132,29 +160,49 @@ async function initHeadersChoices() {
       searchField: ["value"],
       create: false,
       onChange: function (value) {
-        selectedItems = new Set(value);
-        saveSelectedItems();
+        // Use saveSettings to save the updated array
+        saveSettings({ addedColumns: value || [] });
       },
     })[0].selectize;
 
     // Add options using Selectize API
-    items.forEach(function (option) {
-      selectize.addOption({ value: option });
+    columnOptions.forEach(function (option) {
+      selectizeInstance.addOption({ value: option });
     });
 
-    window.sel = selectize;
-    // Set default selected options using Selectize API
-    selectize.setValue(Array.from(selectedItems));
+    // Set selected options using Selectize API from currentSettings
+    selectizeInstance.setValue(initialColumns);
   });
 }
 
 async function initUserDefinedUploadUrl() {
-  const userDefinedUploadUrl = await loadUserDefinedUploadUrl();
+  // Settings are now loaded globally at startup
+  const initialUrl = currentSettings.userDefinedUploadUrl || defaultSettings.userDefinedUploadUrl || '';
   const userDefinedUploadUrlInput = document.getElementById('userDefinedUploadUrl');
-  userDefinedUploadUrlInput.value = userDefinedUploadUrl;
-  
+  userDefinedUploadUrlInput.value = initialUrl;
+
   userDefinedUploadUrlInput.addEventListener('change', (e) => {
-    saveUserDefinedUploadUrl(e.target.value);
+    const trimmedUrl = e.target.value.trim();
+    // Use saveSettings
+    saveSettings({ userDefinedUploadUrl: trimmedUrl || null });
+  });
+}
+
+async function initEnableTooltips() {
+  const enableTooltipsCheckbox = document.getElementById('enableTooltips');
+  enableTooltipsCheckbox.checked = currentSettings.enableTooltips || false;
+  
+  enableTooltipsCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableTooltips: e.target.checked });
+  });
+}
+
+async function initEnableCmdClick() {
+  const enableCmdClickCheckbox = document.getElementById('enableCmdClick');
+  enableCmdClickCheckbox.checked = currentSettings.enableCmdClick || false;
+  
+  enableCmdClickCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableCmdClick: e.target.checked });
   });
 }
 
@@ -183,8 +231,22 @@ function positionTooltips() {
   });
 }
 
-// Initialize both components
-initHeadersChoices();
-initUserDefinedUploadUrl();
-window.addEventListener('load', positionTooltips);
-window.addEventListener('resize', positionTooltips);
+function initEventListeners() {
+  window.addEventListener('load', positionTooltips);
+  window.addEventListener('resize', positionTooltips);
+}
+
+// --- Initialization ---
+
+async function initializePopup() {
+  await loadSettings(); // Load all settings initially
+  broadcastSettings(currentSettings);
+  await initHeadersChoices();
+  await initUserDefinedUploadUrl();
+  await initEnableTooltips();
+  await initEnableCmdClick();
+  positionTooltips(); // Initial positioning
+  initEventListeners();
+}
+
+initializePopup(); // Start the initialization process
