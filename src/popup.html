@@ -27,8 +27,8 @@
         padding: 1rem;
         width: 20rem;
         margin: 0;
-        min-height: 320px;
-        min-width: 360px;
+        min-height: 600px;
+        min-width: 460px;
       }
       .input-container {
         margin-bottom: 20px;
@@ -38,6 +38,9 @@
         margin-bottom: 5px;
         font-size: 14px;
         color: var(--gray-400);
+      }
+      .disabled-label {
+        color: var(--gray-500) !important;
       }
 
       .input-container-height {
@@ -220,49 +223,6 @@
         transform: translateY(-50%);
       }
 
-      .tooltip-top .tooltip-text::after {
-        content: "";
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        margin-left: -5px;
-        border-width: 5px;
-        border-style: solid;
-        border-color: var(--dark-element) transparent transparent transparent;
-      }
-
-      .tooltip-bottom .tooltip-text::after {
-        content: "";
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        margin-left: -5px;
-        border-width: 5px;
-        border-style: solid;
-        border-color: transparent transparent var(--dark-element) transparent;
-      }
-
-      .tooltip-left .tooltip-text::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 100%;
-        margin-top: -5px;
-        border-width: 5px;
-        border-style: solid;
-        border-color: transparent transparent transparent var(--dark-element);
-      }
-
-      .tooltip-right .tooltip-text::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        right: 100%;
-        margin-top: -5px;
-        border-width: 5px;
-        border-style: solid;
-        border-color: transparent var(--dark-element) transparent transparent;
-      }
     </style>
   </head>
   <body>

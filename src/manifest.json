@@ -8,8 +8,7 @@
   },
   "permissions": [
     "storage",
-    "alarms",
-    "scripting"
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>"

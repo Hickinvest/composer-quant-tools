@@ -122,23 +122,26 @@ function broadcastSettings(changedSettings) {
     }
   });
   
-  // Use postMessage to communicate with content scripts
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-    if (tabs && tabs[0]) {
-      // Execute a script in the page that will use postMessage
-      chrome.scripting.executeScript({
-        target: { tabId: tabs[0].id },
-        func: (settingsData) => {
-          window.postMessage({
-            source: 'composer-quant-tools-extension',
-            type: 'SETTINGS_UPDATED',
-            settings: settingsData
-          }, '*');
-        },
-        args: [changedSettings]
-      }).catch(err => console.error("Error posting message:", err));
-    }
-  });
+  // If we want to broadcast to content scripts, it requires manifest.json 
+  // to have "scripting" permission
+  //
+  // // Use postMessage to communicate with content scripts
+  // chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+  //   if (tabs && tabs[0]) {
+  //     // Execute a script in the page that will use postMessage
+  //     chrome.scripting.executeScript({
+  //       target: { tabId: tabs[0].id },
+  //       func: (settingsData) => {
+  //         window.postMessage({
+  //           source: 'composer-quant-tools-extension',
+  //           type: 'SETTINGS_UPDATED',
+  //           settings: settingsData
+  //         }, '*');
+  //       },
+  //       args: [changedSettings]
+  //     }).catch(err => console.error("Error posting message:", err));
+  //   }
+  // });
 }
 
 
@@ -190,10 +193,33 @@ async function initUserDefinedUploadUrl() {
 
 async function initEnableTooltips() {
   const enableTooltipsCheckbox = document.getElementById('enableTooltips');
-  enableTooltipsCheckbox.checked = currentSettings.enableTooltips || false;
-  
+  const enableCmdClickCheckbox = document.getElementById('enableCmdClick');
+  // Attempt to find the label associated with the CmdClick checkbox
+  const enableCmdClickLabel = document.querySelector('label[for="enableCmdClick"]');
+
+  // Set initial checked state from settings
+  enableTooltipsCheckbox.checked = currentSettings.enableTooltips ?? false;
+
+  // Function to update CmdClick state (checkbox and label)
+  const updateCmdClickState = (isTooltipEnabled) => {
+    enableCmdClickCheckbox.disabled = !isTooltipEnabled;
+    if (enableCmdClickLabel) {
+      if (isTooltipEnabled) {
+        enableCmdClickLabel.classList.remove('disabled-label');
+      } else {
+        enableCmdClickLabel.classList.add('disabled-label');
+      }
+    }
+  };
+
+  // Set initial state for CmdClick checkbox and label
+  updateCmdClickState(enableTooltipsCheckbox.checked);
+
   enableTooltipsCheckbox.addEventListener('change', (e) => {
-    saveSettings({ enableTooltips: e.target.checked });
+    const isChecked = e.target.checked;
+    saveSettings({ enableTooltips: isChecked });
+    // Update the state of CmdClick checkbox and label
+    updateCmdClickState(isChecked);
   });
 }
 
