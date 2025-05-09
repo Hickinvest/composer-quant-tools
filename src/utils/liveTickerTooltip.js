@@ -4,13 +4,14 @@
 (()=>{
   const API_URL = 'https://stagehand-api.composer.trade/api/v1/public/quotes';
   const tickerParentSelectors = [
-    '.table-fixed tr td:first-child', // table cells (porfilio page)
+    '.table-fixed tr td:first-child', // table cells (portfolio page)
     'table tr td:first-child', // table cells (Symphony Tools extension's table)
     '.table-auto tr td:first-child', // table cells
     '.table-auto tr th', // backtest historical allocations table
     '.blk--subsym', // symphony details and edit page group title
     '.blk--function', // symphony details and edit page rule block if/else functions
     '.blk--asset', // symphony details and edit page rule block assets
+    '.table-cell .bg-base-dark.rounded', // dark ticker labels - holdings, history, trade previews
   ];
 
   // invalid tickers that may be picked up by the regex
@@ -22,6 +23,9 @@
     'U.S',
     'ETF',
   ];
+
+  let enableTooltips = true;
+  let enableCmdClick = true;
 
   //----------------------------------------------
 
@@ -188,12 +192,19 @@
   const debouncedShowTooltip = _.debounce(showTooltip, 500); // should be long enough for content to load so that cache can be used
 
   function checkTicker(event) {
+    // Check settings before proceeding
+    if (!enableTooltips) {
+        setToolTipVisible(false);
+        lastTickersFromElement = null;
+        return; // Don't process if tooltips are disabled
+    }
+
     const elementFromPoint = document.elementFromPoint(event.clientX, event.clientY);
     const tickers = getTickersFromElement(elementFromPoint);
     if (tickers?.length) {
       if (event.type === 'click') {
-        // if the user clicks while holding the command key, open the details page
-        if (event.metaKey) {
+        // Check setting before handling click
+        if (event.metaKey && enableCmdClick) {
           event.preventDefault();
           event.stopPropagation();
           tickers.forEach((ticker, index) => {
@@ -215,8 +226,39 @@
   }
   const debouncedCheckTicker = _.debounce(checkTicker, 10);
 
+    // Function to wait for storageAccess to be available
+  async function waitForStorageAccess(retries = 5) {
+    if (window.storageAccess) { return true; }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return waitForStorageAccess(--retries);
+  }
+
+  async function loadSettings() {
+    // load settings from storage
+    await waitForStorageAccess();
+    try {
+      // Wait for storageAccess to be available
+      const settings = await window.storageAccess.get(['enableTooltips', 'enableCmdClick']);
+      enableTooltips = settings.enableTooltips ?? true;
+      enableCmdClick = settings.enableCmdClick ?? true;
+    } catch (error) {
+      console.error('Error loading tooltip settings:', error);
+    }
+  }
+
   // Initialize the script
-  function initLiveTickerTooltip() {
+  async function initLiveTickerTooltip() {
+    await loadSettings();
+    // Listen for postMessage events instead of chrome.runtime.onMessage
+    window.addEventListener('message', function(event) {
+      // Make sure the message is from our extension
+      if (
+          event.data?.source === 'composer-quant-tools-extension' &&
+          event.data?.type === 'SETTINGS_UPDATED'
+      ) {
+        loadSettings();
+      }
+    });
     // Handle mousemove events to check for ticker text and show tooltips
     document.addEventListener('mousemove', debouncedCheckTicker);
     // Handle mouse click events to open the details page
