@@ -4,142 +4,906 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QuantStats in Browser</title>
-    <script src="./pyodide/pyodide.js"></script>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      #status {
+        color: #0066cc;
+        margin: 10px 0;
+        font-weight: bold;
+      }
+      #error {
+        color: #cc0000;
+        margin: 10px 0;
+        white-space: pre-wrap;
+        font-family: monospace;
+        background-color: #fff0f0;
+        padding: 10px;
+        border-left: 4px solid #cc0000;
+        display: none;
+      }
+      #warning {
+        color: #cc6600;
+        margin: 10px 0;
+        background-color: #fffcf0;
+        padding: 10px;
+        border-left: 4px solid #ffcc00;
+        display: none;
+      }
+      #log {
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ccc;
+        background-color: #f8f8f8;
+        font-family: monospace;
+        height: 150px;
+        overflow-y: auto;
+      }
+      #output {
+        font-family: monospace;
+        white-space: pre-wrap;
+        background-color: #f0f8ff;
+        padding: 10px;
+        border-left: 4px solid #0066cc;
+        margin: 10px 0;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      #download-link {
+        margin: 20px 0;
+      }
+      #download-link a {
+        background-color: #0066cc;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      .info {
+        margin: 10px 0;
+        padding: 10px;
+        background-color: #f0f0f0;
+        border-left: 4px solid #999;
+      }
+    </style>
   </head>
   <body>
     <h1>QuantStats Demo</h1>
-    <button onclick="runQuantStats()">Run QuantStats</button>
+    
+    <div id="status">Initializing worker...</div>
+    <div id="error"></div>
+    <div id="warning"></div>
+    
+    <div>
+      <h3>Worker Log:</h3>
+      <div id="log"></div>
+    </div>
+    
+    <button id="run-button" disabled>Run QuantStats</button>
     <div id="download-link"></div>
     <div id="output"></div>
 
     <script>
-      async function loadPyodideAndPackages() {
-        let pyodide = await loadPyodide();
-        await pyodide.loadPackage("pandas");
-        await pyodide.loadPackage("micropip");
-        await pyodide.loadPackage("ipython");
-        await pyodide.loadPackage("openblas");
-        // await pyodide.loadPackage(
-        //   "./pyodide/QuantStats-0.0.62-py2.py3-none-any.whl",
-        // );
-        await pyodide.loadPackage("./pyodide/quantstats_lumi-0.3.3-py2.py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/tabulate-0.9.0-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/yfinance-0.2.48-py2.py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/seaborn-0.13.2-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/platformdirs-4.2.2-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/frozendict-2.4.6-py312-none-any.whl");
-        await pyodide.loadPackage("./pyodide/multitasking-0.0.11-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/matplotlib-3.5.2-cp312-cp312-pyodide_2024_0_wasm32.whl");
-        await pyodide.loadPackage("./pyodide/cycler-0.12.1-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/fonttools-4.51.0-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/kiwisolver-1.4.5-cp312-cp312-pyodide_2024_0_wasm32.whl");
-        await pyodide.loadPackage("./pyodide/pillow-10.2.0-cp312-cp312-pyodide_2024_0_wasm32.whl");
-        await pyodide.loadPackage("./pyodide/pyparsing-3.1.2-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/matplotlib_pyodide-0.2.2-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/scipy-1.12.0-cp312-cp312-pyodide_2024_0_wasm32.whl");
-        await pyodide.loadPackage("./pyodide/requests-2.31.0-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/charset_normalizer-3.3.2-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/idna-3.7-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/urllib3-2.2.1-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/certifi-2024.2.2-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/beautifulsoup4-4.12.3-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/soupsieve-2.5-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/peewee-3.17.3-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/cffi-1.16.0-cp312-cp312-pyodide_2024_0_wasm32.whl");
-        await pyodide.loadPackage("./pyodide/pycparser-2.22-py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/lxml-5.2.1-cp312-cp312-pyodide_2024_0_wasm32.whl");
-        await pyodide.loadPackage("./pyodide/html5lib-1.1-py2.py3-none-any.whl");
-        await pyodide.loadPackage("./pyodide/webencodings-0.5.1-py2.py3-none-any.whl");
-        // await pyodide.runPythonAsync(`
-        //   import micropip
-        //   await micropip.install('quantstats-lumi')
-        // `);
-        return pyodide;
+      const mockSPYData = {
+        "last_semantic_update_at": "2025-05-14T21:14:33.917510-04:00[America/New_York]",
+        "first_day": 19724,
+        "last_market_days_value": 11577.25,
+        "last_market_days_holdings": {
+            "$USD": 0.0,
+            "SPY": 21.493102626942886
+        },
+        "legend": {
+            "gP9YEyPpXRQj0hEDRHNp": {
+                "name": "SPY"
+            }
+        },
+        "data_warnings": {},
+        "last_market_day": 19949,
+        "costs": {
+            "reg_fee": 0.0,
+            "taf_fee": 0.0,
+            "slippage": 0.0,
+            "spread_markup": 0.0,
+            "subscription": 0.0
+        },
+        "dvm_capital": {
+            "gP9YEyPpXRQj0hEDRHNp": {
+                "19878": 11214.04,
+                "19935": 11727.57,
+                "19816": 11023.45,
+                "19930": 11591.94,
+                "19748": 10312.28,
+                "19899": 11600.25,
+                "19734": 10085.26,
+                "19859": 11220.4,
+                "19941": 11117.36,
+                "19884": 11368.33,
+                "19871": 11244.17,
+                "19912": 11822.74,
+                "19949": 11577.25,
+                "19926": 11809.33,
+                "19809": 11103.25,
+                "19831": 10601.33,
+                "19765": 10599.38,
+                "19915": 11848.29,
+                "19902": 11587.26,
+                "19942": 11043.05,
+                "19803": 11082.67,
+                "19732": 10082.72,
+                "19793": 10817.3,
+                "19864": 11277.07,
+                "19877": 11201.51,
+                "19895": 11593.43,
+                "19787": 10730.56,
+                "19745": 10258.33,
+                "19740": 10081.24,
+                "19844": 10618.94,
+                "19804": 11061.65,
+                "19761": 10543.1,
+                "19782": 10749.6,
+                "19894": 11609.0,
+                "19751": 10393.94,
+                "19866": 11162.46,
+                "19943": 11298.33,
+                "19852": 11039.58,
+                "19786": 10838.88,
+                "19815": 11011.36,
+                "19733": 10078.28,
+                "19807": 11031.09,
+                "19796": 10894.95,
+                "19837": 10726.33,
+                "19817": 10888.9,
+                "19814": 11081.82,
+                "19923": 11688.82,
+                "19927": 11790.81,
+                "19867": 11236.32,
+                "19835": 10605.57,
+                "19741": 10206.91,
+                "19818": 11002.65,
+                "19810": 11101.13,
+                "19849": 10963.18,
+                "19762": 10604.04,
+                "19779": 10705.38,
+                "19879": 11347.32,
+                "19781": 10711.09,
+                "19919": 11955.81,
+                "19850": 10975.28,
+                "19755": 10459.11,
+                "19881": 11333.31,
+                "19825": 10841.78,
+                "19853": 11053.8,
+                "19913": 11834.24,
+                "19845": 10718.27,
+                "19766": 10453.4,
+                "19744": 10228.49,
+                "19824": 10993.53,
+                "19888": 11519.44,
+                "19726": 9886.38,
+                "19760": 10538.45,
+                "19874": 11192.39,
+                "19808": 11010.72,
+                "19851": 10976.34,
+                "19863": 11249.48,
+                "19933": 11598.76,
+                "19823": 10911.18,
+                "19892": 11640.62,
+                "19858": 11243.54,
+                "19842": 10825.02,
+                "19860": 11236.53,
+                "19914": 11951.34,
+                "19948": 11540.84,
+                "19886": 11489.3,
+                "19838": 10685.58,
+                "19846": 10851.12,
+                "19752": 10385.9,
+                "19797": 10820.14,
+                "19800": 10884.44,
+                "19920": 12026.72,
+                "19773": 10510.1,
+                "19921": 11858.09,
+                "19754": 10350.15,
+                "19783": 10850.52,
+                "19730": 10041.25,
+                "19906": 11689.24,
+                "19727": 9899.92,
+                "19801": 10944.93,
+                "19898": 11555.75,
+                "19821": 11008.81,
+                "19829": 10686.43,
+                "19822": 11021.54,
+                "19940": 11015.79,
+                "19731": 10026.02,
+                "19790": 10826.61,
+                "19916": 11923.03,
+                "19836": 10731.42,
+                "19865": 11244.6,
+                "19725": 9918.33,
+                "19753": 10216.43,
+                "19856": 11055.29,
+                "19795": 10916.53,
+                "19936": 11561.5,
+                "19768": 10621.17,
+                "19776": 10744.73,
+                "19746": 10269.54,
+                "19880": 11347.1,
+                "19885": 11395.71,
+                "19769": 10568.28,
+                "19944": 11348.16,
+                "19929": 11463.55,
+                "19934": 11539.99,
+                "19759": 10451.28,
+                "19937": 11346.24,
+                "19901": 11633.04,
+                "19774": 10519.62,
+                "19738": 10048.23,
+                "19780": 10725.27,
+                "19775": 10737.33,
+                "19747": 10325.39,
+                "19843": 10653.54,
+                "19839": 10786.82,
+                "19802": 11046.16,
+                "19794": 10933.67,
+                "19789": 10891.99,
+                "19724": 10000.0,
+                "19907": 11741.41,
+                "19891": 11611.12,
+                "19758": 10421.03,
+                "19857": 11106.01,
+                "19900": 11614.72,
+                "19872": 11165.44,
+                "19947": 11354.12,
+                "19873": 11091.37,
+                "19887": 11512.43,
+                "19905": 11611.11,
+                "19828": 10705.96,
+                "19767": 10548.39,
+                "19832": 10508.79,
+                "19909": 11809.12,
+                "19922": 11766.96,
+                "19830": 10623.19,
+                "19788": 10784.93,
+                "19739": 9992.38,
+                "19928": 11523.6
+            }
+        },
+        "rebalance_days": [
+            19724,
+            19725,
+            19726,
+            19727,
+            19730,
+            19731,
+            19732,
+            19733,
+            19734,
+            19738,
+            19739,
+            19740,
+            19741,
+            19744,
+            19745,
+            19746,
+            19747,
+            19748,
+            19751,
+            19752,
+            19753,
+            19754,
+            19755,
+            19758,
+            19759,
+            19760,
+            19761,
+            19762,
+            19765,
+            19766,
+            19767,
+            19768,
+            19769,
+            19773,
+            19774,
+            19775,
+            19776,
+            19779,
+            19780,
+            19781,
+            19782,
+            19783,
+            19786,
+            19787,
+            19788,
+            19789,
+            19790,
+            19793,
+            19794,
+            19795,
+            19796,
+            19797,
+            19800,
+            19801,
+            19802,
+            19803,
+            19804,
+            19807,
+            19808,
+            19809,
+            19810,
+            19814,
+            19815,
+            19816,
+            19817,
+            19818,
+            19821,
+            19822,
+            19823,
+            19824,
+            19825,
+            19828,
+            19829,
+            19830,
+            19831,
+            19832,
+            19835,
+            19836,
+            19837,
+            19838,
+            19839,
+            19842,
+            19843,
+            19844,
+            19845,
+            19846,
+            19849,
+            19850,
+            19851,
+            19852,
+            19853,
+            19856,
+            19857,
+            19858,
+            19859,
+            19860,
+            19863,
+            19864,
+            19865,
+            19866,
+            19867,
+            19871,
+            19872,
+            19873,
+            19874,
+            19877,
+            19878,
+            19879,
+            19880,
+            19881,
+            19884,
+            19885,
+            19886,
+            19887,
+            19888,
+            19891,
+            19892,
+            19894,
+            19895,
+            19898,
+            19899,
+            19900,
+            19901,
+            19902,
+            19905,
+            19906,
+            19907,
+            19909,
+            19912,
+            19913,
+            19914,
+            19915,
+            19916,
+            19919,
+            19920,
+            19921,
+            19922,
+            19923,
+            19926,
+            19927,
+            19928,
+            19929,
+            19930,
+            19933,
+            19934,
+            19935,
+            19936,
+            19937,
+            19940,
+            19941,
+            19942,
+            19943,
+            19944,
+            19947,
+            19948,
+            19949
+        ],
+        "active_asset_nodes": {
+            "525862d0-fc54-46d0-a185-14ba8f4de391": 1.0
+        },
+        "tdvm_weights": {
+            "$USD": {},
+            "SPY": {
+                "19878": 1.0,
+                "19935": 1.0,
+                "19816": 1.0,
+                "19930": 1.0,
+                "19748": 1.0,
+                "19899": 1.0,
+                "19734": 1.0,
+                "19859": 1.0,
+                "19941": 1.0,
+                "19884": 1.0,
+                "19871": 1.0,
+                "19912": 1.0,
+                "19949": 1.0,
+                "19926": 1.0,
+                "19809": 1.0,
+                "19831": 1.0,
+                "19765": 1.0,
+                "19915": 1.0,
+                "19902": 1.0,
+                "19942": 1.0,
+                "19803": 1.0,
+                "19732": 1.0,
+                "19793": 1.0,
+                "19864": 1.0,
+                "19877": 1.0,
+                "19895": 1.0,
+                "19787": 1.0,
+                "19745": 1.0,
+                "19740": 1.0,
+                "19844": 1.0,
+                "19804": 1.0,
+                "19761": 1.0,
+                "19782": 1.0,
+                "19894": 1.0,
+                "19751": 1.0,
+                "19866": 1.0,
+                "19943": 1.0,
+                "19852": 1.0,
+                "19786": 1.0,
+                "19815": 1.0,
+                "19733": 1.0,
+                "19807": 1.0,
+                "19796": 1.0,
+                "19837": 1.0,
+                "19817": 1.0,
+                "19814": 1.0,
+                "19923": 1.0,
+                "19927": 1.0,
+                "19867": 1.0,
+                "19835": 1.0,
+                "19741": 1.0,
+                "19818": 1.0,
+                "19810": 1.0,
+                "19849": 1.0,
+                "19762": 1.0,
+                "19779": 1.0,
+                "19879": 1.0,
+                "19781": 1.0,
+                "19919": 1.0,
+                "19850": 1.0,
+                "19755": 1.0,
+                "19881": 1.0,
+                "19825": 1.0,
+                "19853": 1.0,
+                "19913": 1.0,
+                "19845": 1.0,
+                "19766": 1.0,
+                "19744": 1.0,
+                "19824": 1.0,
+                "19888": 1.0,
+                "19726": 1.0,
+                "19760": 1.0,
+                "19874": 1.0,
+                "19808": 1.0,
+                "19851": 1.0,
+                "19863": 1.0,
+                "19933": 1.0,
+                "19823": 1.0,
+                "19892": 1.0,
+                "19858": 1.0,
+                "19842": 1.0,
+                "19860": 1.0,
+                "19914": 1.0,
+                "19948": 1.0,
+                "19886": 1.0,
+                "19838": 1.0,
+                "19846": 1.0,
+                "19752": 1.0,
+                "19797": 1.0,
+                "19800": 1.0,
+                "19920": 1.0,
+                "19773": 1.0,
+                "19921": 1.0,
+                "19754": 1.0,
+                "19783": 1.0,
+                "19730": 1.0,
+                "19906": 1.0,
+                "19727": 1.0,
+                "19801": 1.0,
+                "19898": 1.0,
+                "19821": 1.0,
+                "19829": 1.0,
+                "19822": 1.0,
+                "19940": 1.0,
+                "19731": 1.0,
+                "19790": 1.0,
+                "19916": 1.0,
+                "19836": 1.0,
+                "19865": 1.0,
+                "19725": 1.0,
+                "19753": 1.0,
+                "19856": 1.0,
+                "19795": 1.0,
+                "19936": 1.0,
+                "19768": 1.0,
+                "19776": 1.0,
+                "19746": 1.0,
+                "19880": 1.0,
+                "19885": 1.0,
+                "19769": 1.0,
+                "19944": 1.0,
+                "19929": 1.0,
+                "19934": 1.0,
+                "19759": 1.0,
+                "19937": 1.0,
+                "19901": 1.0,
+                "19774": 1.0,
+                "19738": 1.0,
+                "19780": 1.0,
+                "19775": 1.0,
+                "19747": 1.0,
+                "19843": 1.0,
+                "19839": 1.0,
+                "19802": 1.0,
+                "19794": 1.0,
+                "19789": 1.0,
+                "19724": 1.0,
+                "19907": 1.0,
+                "19891": 1.0,
+                "19758": 1.0,
+                "19857": 1.0,
+                "19900": 1.0,
+                "19872": 1.0,
+                "19947": 1.0,
+                "19873": 1.0,
+                "19887": 1.0,
+                "19905": 1.0,
+                "19828": 1.0,
+                "19767": 1.0,
+                "19832": 1.0,
+                "19909": 1.0,
+                "19922": 1.0,
+                "19830": 1.0,
+                "19788": 1.0,
+                "19739": 1.0,
+                "19928": 1.0
+            }
+        },
+        "stats": {
+            "min": -0.029124185633302213,
+            "annualized_rate_of_return": 0.26691419833961216,
+            "mean": 9.765405378755434E-4,
+            "calmar_ratio": 3.175395257292776,
+            "sharpe_ratio": 1.9573052660451054,
+            "size": 155,
+            "cumulative_return": 0.157725,
+            "trailing_one_month_return": -0.03166326664609087,
+            "max_drawdown": 0.08405699974722936,
+            "median": 0.0010927704606891187,
+            "max": 0.02311680197047017,
+            "standard_deviation": 0.125728071044267,
+            "trailing_three_month_return": 0.04243108010887786
+        }
+      }
+      const mockSPYSymphonyId = "gP9YEyPpXRQj0hEDRHNp";
+
+      let pyodideWorker;
+      const statusEl = document.getElementById('status');
+      const errorEl = document.getElementById('error');
+      const warningEl = document.getElementById('warning');
+      const logEl = document.getElementById('log');
+      const outputEl = document.getElementById('output');
+      
+      // Add to log
+      function log(message) {
+        const line = document.createElement('div');
+        line.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(message);
+      }
+      
+      // Show error
+      function showError(message) {
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        console.error(message);
+      }
+      
+      // Clear error
+      function clearError() {
+        errorEl.textContent = '';
+        errorEl.style.display = 'none';
+      }
+      
+      // Show warning
+      function showWarning(message) {
+        warningEl.innerHTML += message + '<br>';
+        warningEl.style.display = 'block';
+      }
+      
+      // Clear warning
+      function clearWarning() {
+        warningEl.innerHTML = '';
+        warningEl.style.display = 'none';
       }
 
-      let pyodideReadyPromise = loadPyodideAndPackages();
-
-      async function getTearsheet() {
-        let pyodide = await pyodideReadyPromise;
-        return await pyodide.runPythonAsync(`
-                import quantstats_lumi as qs
-                import pandas as pd
-                import json
-                import sys
-                import matplotlib
-                import tempfile
-                import os
-
-                matplotlib.use('Agg')
-
-                symphony_id = 'sym_test'
-                symphony_name = 'Symphony Test'
-
-                # Enable extend_pandas functionality from QuantStats
-                qs.extend_pandas()
-
-                # Parse the JSON data
-                data = json.loads('''{"epoch_ms":[1711584000000,1711929600000,1712016000000,1712102400000,1712188800000,1712275200000,1712534400000,1712620800000,1712707200000,1712793600000,1712880000000,1713139200000,1713225600000,1713312000000,1713398400000,1713484800000,1713744000000,1713830400000,1713916800000,1714003200000,1714089600000,1714348800000,1714435200000,1714521600000,1714608000000,1714694400000,1714953600000,1715040000000,1715126400000,1715212800000,1715299200000,1715558400000,1715644800000,1715731200000,1715817600000,1715904000000,1716163200000,1716249600000,1716336000000,1716422400000,1716508800000,1716854400000,1716940800000,1717027200000,1717113600000,1717372800000,1717459200000,1717545600000,1717632000000,1717718400000,1717977600000,1718064000000,1718150400000,1718236800000,1718323200000,1718582400000,1718668800000,1718841600000,1718928000000,1719187200000,1719273600000,1719360000000,1719446400000,1719532800000,1719792000000,1719878400000,1719964800000,1720137600000,1720396800000,1720483200000,1720569600000,1720656000000],"series":[198.9,200.13,194.77,196.06,186.82,193.41,193.54,195.54,99941.74,104634.7,99586.38,94587.45,94602.58,91095.58,89467.36,83927.78,86367.91,90213.06,91095.01,89636.4,93753.96,94873.31,89440.37,87518,90755.06,96159.38,99311.2,99311.2,99124.66,99666.15,100344.5,101004.3,102884.57,104629.04,103986.14,103755.35,105894.28,106438.26,106372.32,104789.84,107719.42,108889.75,106611.17,103186.28,103072.01,104076.42,104849.36,111172.44,111040.58,110628.53,111798.76,114103.41,113969.3,113953.61,118972.49,117909.8,117233.55,121502.16,120386.77,116313,120193.41,118477.11,119335.33,117457.78,119383.06,123038.67,126058.23,130353.98,129558.07,129558.07,174185.18,174657.79],"deposit_adjusted_series":[200,200.34,194.98,196.27,187.01,193.6,193.72,195.71,195.41,204.59,194.71,184.94,184.97,178.11,174.93,164.1,168.87,176.39,178.11,175.26,183.31,185.5,174.88,171.12,177.45,188.01,194.18,194.18,193.81,194.87,196.2,197.49,201.16,210.71,209.42,208.95,213.26,214.36,214.22,211.03,216.94,219.28,214.71,207.81,207.58,209.6,211.16,223.89,223.63,222.8,225.15,229.79,240,240,250.57,248.33,246.91,255.9,253.55,244.97,253.14,253.74,255.58,251.56,255.68,263.51,271.01,279.18,279.62,279.62,279.09,279.85]}''')
-
-                # Create pandas Series for each field
-                datetime_series = pd.to_datetime(data['epoch_ms'], unit='ms')
-                series_series = pd.Series(data['series'], index=datetime_series, name='series')
-                deposit_adjusted_series = pd.Series(data['deposit_adjusted_series'], index=datetime_series, name='deposit_adjusted_series')
-
-                # Generate HTML report to a temporary file
-                temp_file = tempfile.NamedTemporaryFile(delete=False)
-                temp_file_path = temp_file.name
-                temp_file.close()
-
-                qs.reports.html(deposit_adjusted_series, title=symphony_id, output=temp_file_path)
-                with open(temp_file_path, 'r', encoding='utf-8') as file:
-                    html_report_content = file.read()
-                os.remove(temp_file_path)
-                html_report_content
-
-            `);
+      function generateReturnsArrayFromDepositAdjustedSeries(deposit_adjusted_series) {
+        let previousValue = deposit_adjusted_series[0];
+        return deposit_adjusted_series.map((point) => {
+          const thisValue = (point - previousValue) / previousValue;
+          previousValue = point;
+          return thisValue;
+        });
       }
 
-      async function getQuantstats() {
-        let pyodide = await pyodideReadyPromise;
-        return await pyodide.runPythonAsync(`
-                import quantstats_lumi as qs
-                import pandas as pd
-                import json
-
-                symphony_id = 'sym_test'
-                symphony_name = 'Symphony Test'
-
-                # Enable extend_pandas functionality from QuantStats
-                qs.extend_pandas()
-
-                # Parse the JSON data
-                data = json.loads('''{"epoch_ms":[1711584000000,1711929600000,1712016000000,1712102400000,1712188800000,1712275200000,1712534400000,1712620800000,1712707200000,1712793600000,1712880000000,1713139200000,1713225600000,1713312000000,1713398400000,1713484800000,1713744000000,1713830400000,1713916800000,1714003200000,1714089600000,1714348800000,1714435200000,1714521600000,1714608000000,1714694400000,1714953600000,1715040000000,1715126400000,1715212800000,1715299200000,1715558400000,1715644800000,1715731200000,1715817600000,1715904000000,1716163200000,1716249600000,1716336000000,1716422400000,1716508800000,1716854400000,1716940800000,1717027200000,1717113600000,1717372800000,1717459200000,1717545600000,1717632000000,1717718400000,1717977600000,1718064000000,1718150400000,1718236800000,1718323200000,1718582400000,1718668800000,1718841600000,1718928000000,1719187200000,1719273600000,1719360000000,1719446400000,1719532800000,1719792000000,1719878400000,1719964800000,1720137600000,1720396800000,1720483200000,1720569600000,1720656000000],"series":[198.9,200.13,194.77,196.06,186.82,193.41,193.54,195.54,99941.74,104634.7,99586.38,94587.45,94602.58,91095.58,89467.36,83927.78,86367.91,90213.06,91095.01,89636.4,93753.96,94873.31,89440.37,87518,90755.06,96159.38,99311.2,99311.2,99124.66,99666.15,100344.5,101004.3,102884.57,104629.04,103986.14,103755.35,105894.28,106438.26,106372.32,104789.84,107719.42,108889.75,106611.17,103186.28,103072.01,104076.42,104849.36,111172.44,111040.58,110628.53,111798.76,114103.41,113969.3,113953.61,118972.49,117909.8,117233.55,121502.16,120386.77,116313,120193.41,118477.11,119335.33,117457.78,119383.06,123038.67,126058.23,130353.98,129558.07,129558.07,174185.18,174657.79],"deposit_adjusted_series":[200,200.34,194.98,196.27,187.01,193.6,193.72,195.71,195.41,204.59,194.71,184.94,184.97,178.11,174.93,164.1,168.87,176.39,178.11,175.26,183.31,185.5,174.88,171.12,177.45,188.01,194.18,194.18,193.81,194.87,196.2,197.49,201.16,210.71,209.42,208.95,213.26,214.36,214.22,211.03,216.94,219.28,214.71,207.81,207.58,209.6,211.16,223.89,223.63,222.8,225.15,229.79,240,240,250.57,248.33,246.91,255.9,253.55,244.97,253.14,253.74,255.58,251.56,255.68,263.51,271.01,279.18,279.62,279.62,279.09,279.85]}''')
-
-                # Create pandas Series for each field
-                datetime_series = pd.to_datetime(data['epoch_ms'], unit='ms')
-                series_series = pd.Series(data['series'], index=datetime_series, name='series')
-                deposit_adjusted_series = pd.Series(data['deposit_adjusted_series'], index=datetime_series, name='deposit_adjusted_series')
-
-                quantstats_metrics = qs.reports.metrics(deposit_adjusted_series, title=symphony_name, mode='full', display = False, sep=True, prepare_returns=False, internal="True").to_dict()['Strategy']
-                quantstats_months = qs.stats.monthly_returns(deposit_adjusted_series).to_dict()
-                quantstats_drawdown_series = qs.stats.to_drawdown_series(deposit_adjusted_series)
-                quantstats_drawdown_details = qs.stats.drawdown_details(quantstats_drawdown_series).sort_values(by='max drawdown', ascending=True)[:30].to_dict('records')
-                # qs.reports.html(deposit_adjusted_series, title=symphony_id, output=f"/{symphony_id}.html") would love to get this working and maybe serve it as a blob
-
-                json.dumps({'quantstats_metrics':quantstats_metrics, 'quantstats_months':quantstats_months, 'quantstats_drawdown_details': quantstats_drawdown_details})
-
-            `);
+      function getSeriesData(type, backtestData, symphonyId) {
+        let series_data = { deposit_adjusted_series: [], epoch_ms: [] };
+        if (type === "backtest") {
+          Object.entries(backtestData.dvm_capital[symphonyId]).forEach(
+            ([day, amount]) => {
+              series_data.epoch_ms.push(day * 24 * 60 * 60 * 1000);
+              series_data.deposit_adjusted_series.push(amount);
+            },
+          );
+        } else if (type === "oos") {
+          const oosStartDate = new Date(
+            symphony.last_semantic_update_at.split("[")[0],
+          ); // this is removing the timezone
+          Object.entries(backtestData.dvm_capital[symphony.id]).forEach(
+            ([day, amount]) => {
+              if (oosStartDate >= new Date(day * 24 * 60 * 60 * 1000)) {
+                return;
+              }
+              series_data.epoch_ms.push(day * 24 * 60 * 60 * 1000);
+              series_data.deposit_adjusted_series.push(amount);
+            },
+          );
+        }
+        return (type === "backtest" || type === "oos") ? series_data : undefined;
       }
 
-      async function runQuantStats() {
-        let pyodide = await pyodideReadyPromise;
+      // Fetch benchmark data from Composer API
+      async function fetchBenchmarkData() {
         try {
-          let quantstats = await getQuantstats();
-          let tearsheet = await getTearsheet();
+          // First check if we have cached data
+          const cachedData = getBenchmarkFromCache();
+          if (cachedData) {
+            log('Using cached benchmark data');
+            return cachedData;
+          }
+          
+          log('Fetching SPY benchmark data...');
+          
+          // const symphonyId = 'gP9YEyPpXRQj0hEDRHNp'; // The specific Symphony ID for SPY
+          // const response = await fetch(`https://backtest-api.composer.trade/api/v2/public/symphonies/${symphonyId}/backtest`, {
+          //   method: 'POST',
+          //   headers: {
+          //     'Content-Type': 'application/json'
+          //   },
+          //   body: JSON.stringify({
+          //     capital: 10000,
+          //     apply_reg_fee: true,
+          //     apply_taf_fee: true,
+          //     apply_subscription: 'none',
+          //     backtest_version: 'v2',
+          //     slippage_percent: 0,
+          //     spread_markup: 0,
+          //     start_date: '1990-01-01',
+          //     end_date: new Date().toISOString().split('T')[0],
+          //     benchmark_symphonies: [],
+          //   })
+          // });
+          //
+          // if (!response.ok) {
+          //   throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+          // }
+          
+          // const data = await response.json();
+          // deep copy mockSPYData
+          const data = JSON.parse(JSON.stringify(mockSPYData));
+          log('Benchmark data fetched successfully');
+          
+          // Extract the relevant series data
+          const benchmarkResponseData = data;
+          if (!benchmarkResponseData || !benchmarkResponseData.dvm_capital) {
+            throw new Error('Invalid benchmark data format');
+          }
+          
+          const benchmark_series_data = getSeriesData('backtest', benchmarkResponseData, mockSPYSymphonyId);
+          
+          // Cache the benchmark data
+          saveBenchmarkToCache(benchmark_series_data);
+          
+          log(`Processed ${benchmark_series_data.deposit_adjusted_series.length} benchmark data points`);
+          return benchmark_series_data;
+        } catch (error) {
+          log(`Error fetching benchmark data: ${error.message}`);
+          showError(`Failed to fetch benchmark data: ${error.message}`);
+          
+          // Return fallback data if API fails
+          return null;
+        }
+      }
+
+      // Save benchmark data to localStorage
+      function saveBenchmarkToCache(benchmarkData) {
+        try {
+          const cacheKey = 'spy_benchmark_data';
+          const cacheTimestampKey = 'spy_benchmark_timestamp';
+          
+          // Store the data
+          localStorage.setItem(cacheKey, JSON.stringify(benchmarkData));
+          
+          // Store the timestamp (for cache invalidation)
+          localStorage.setItem(cacheTimestampKey, Date.now().toString());
+          
+          log('Benchmark data saved to cache');
+        } catch (error) {
+          log(`Warning: Could not save benchmark to cache: ${error.message}`);
+        }
+      }
+
+      // Get benchmark data from localStorage
+      function getBenchmarkFromCache() {
+        try {
+          const cacheKey = 'spy_benchmark_data';
+          const cacheTimestampKey = 'spy_benchmark_timestamp';
+          
+          // Get the cached timestamp
+          const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
+          if (!cachedTimestamp) return null;
+          
+          // Check if cache is older than one day (86400000 ms)
+          const cacheAge = Date.now() - parseInt(cachedTimestamp);
+          if (cacheAge > 86400000) {
+            log('Benchmark cache is too old, will fetch fresh data');
+            return null;
+          }
+          
+          // Get the cached data
+          const cachedData = localStorage.getItem(cacheKey);
+          if (!cachedData) return null;
+          
+          const benchmarkData = JSON.parse(cachedData);
+          log(`Retrieved benchmark data from cache (${benchmarkData.benchmark_series.length} points)`);
+          
+          return benchmarkData;
+        } catch (error) {
+          log(`Warning: Could not retrieve benchmark from cache: ${error.message}`);
+          return null;
+        }
+      }
+
+      // Align benchmark data with strategy data
+      function alignBenchmarkData(strategyData, benchmarkData) {
+        log('Aligning benchmark data with strategy data...');
+        
+        if (!benchmarkData || !benchmarkData.epoch_ms || !benchmarkData.deposit_adjusted_series) {
+          log('No benchmark data to align');
+          return null;
+        }
+        
+        const strategyDates = strategyData.epoch_ms;
+        const benchmarkDates = benchmarkData.epoch_ms;
+        const benchmarkValues = benchmarkData.deposit_adjusted_series;
+        
+        // Create a map of benchmark dates to values for quick lookup
+        const benchmarkMap = {};
+        for (let i = 0; i < benchmarkDates.length; i++) {
+          benchmarkMap[benchmarkDates[i]] = benchmarkValues[i];
+        }
+        
+        // Find the closest benchmark date for each strategy date
+        const alignedBenchmarkSeries = [];
+        for (const strategyDate of strategyDates) {
+          // First check for exact match
+          if (benchmarkMap[strategyDate] !== undefined) {
+            alignedBenchmarkSeries.push(benchmarkMap[strategyDate]);
+            continue;
+          }
+          
+          // If no exact match, find the closest date before the strategy date
+          let closestDate = null;
+          let closestValue = null;
+          
+          for (let i = 0; i < benchmarkDates.length; i++) {
+            const benchmarkDate = benchmarkDates[i];
+            if (benchmarkDate <= strategyDate && (closestDate === null || benchmarkDate > closestDate)) {
+              closestDate = benchmarkDate;
+              closestValue = benchmarkValues[i];
+            }
+          }
+          
+          if (closestValue !== null) {
+            alignedBenchmarkSeries.push(closestValue);
+          } else {
+            // If no earlier date found, use the earliest available
+            alignedBenchmarkSeries.push(benchmarkValues[0]);
+          }
+        }
+        
+        log(`Aligned benchmark data: ${alignedBenchmarkSeries.length} points`);
+        return alignedBenchmarkSeries;
+      }
+
+      // Initialize the worker
+      function initWorker() {
+        clearError();
+        clearWarning();
+        log('Creating pyodide worker...');
+        
+        try {
+          // First check if we're cross-origin isolated
+          if (!window.crossOriginIsolated) {
+            showWarning("Warning: Page is not cross-origin isolated. SharedArrayBuffer may not be available.");
+            log("Warning: Not cross-origin isolated");
+          }
+          
+          // Create the worker
+          pyodideWorker = new Worker('./pyodide-worker.js');
+          
+          // Set up message handling from the worker
+          pyodideWorker.onmessage = function(event) {
+            const data = event.data;
+            
+            if (data.type === 'status') {
+              log(`Worker: ${data.message}`);
+              statusEl.textContent = data.message;
+            }
+            else if (data.type === 'warning') {
+              showWarning(data.message);
+              log(`Warning: ${data.message}`);
+            }
+            else if (data.type === 'ready') {
+              log('Worker is ready!');
+              statusEl.textContent = 'Worker Ready - Click Run QuantStats';
+              document.getElementById('run-button').disabled = false;
+            } 
+            else if (data.type === 'quantstats') {
+              try {
+                // Parse the JSON result
+                const stats = JSON.parse(data.result);
+                outputEl.textContent = JSON.stringify(stats, null, 2);
+                log('QuantStats data processed!');
+                // Log to show successful data return
+                console.log("Received QuantStats data:", stats);
+              } catch (error) {
+                outputEl.textContent = data.result;
+                log('Received raw QuantStats result');
+                console.error("Error parsing QuantStats data:", error);
+              }
+            } 
+            else if (data.type === 'tearsheet') {
+              log('Received tearsheet');
+              console.log("Tearsheet data received, length:", data.result?.length || 0);
 
           // Create a Blob from the HTML content
-          const blob = new Blob([tearsheet], { type: "text/html" });
+              const blob = new Blob([data.result], { type: "text/html" });
           const url = URL.createObjectURL(blob);
 
           // Create a downloadable link
@@ -148,19 +912,133 @@
           downloadLink.target = "_blank";
           downloadLink.textContent = "Open QuantStats tearsheet Report";
           downloadLink.style.display = "block";
-          downloadLink.style.marginTop = "20px";
 
           const linkContainer = document.getElementById("download-link");
           linkContainer.innerHTML = ""; // Clear any previous link
           linkContainer.appendChild(downloadLink);
 
-          document.getElementById("output").innerText = quantstats;
-        } catch (err) {
-          console.error(err);
-          document.getElementById("output").innerText =
-            "An error occurred: " + err.message;
+              log('Tearsheet link created');
+            }
+            else if (data.type === 'error') {
+              showError(data.error);
+              log(`Worker error: ${data.error}`);
+              statusEl.textContent = 'Worker Error';
+            }
+          };
+          
+          // Handle worker errors
+          pyodideWorker.onerror = function(error) {
+            console.error('Worker error event:', error);
+            showError(`Worker error: ${error.message}`);
+            log(`Worker error event: ${error.message}`);
+            statusEl.textContent = 'Worker Error';
+          };
+        } catch (error) {
+          showError(`Failed to create worker: ${error.message}\n${error.stack}`);
+          log(`Error creating worker: ${error.message}`);
+          statusEl.textContent = 'Failed to Create Worker';
         }
       }
+
+      // Run QuantStats in the worker
+      async function runQuantStats() {
+        clearError();
+        clearWarning();
+        log('Running QuantStats...');
+        statusEl.textContent = 'Running QuantStats...';
+        outputEl.textContent = 'Processing...';
+        
+        // The strategy data to process
+        const strategyData = {
+          "epoch_ms":[1711584000000,1711929600000,1712016000000,1712102400000,1712188800000,1712275200000,1712534400000,1712620800000,1712707200000,1712793600000,1712880000000,1713139200000,1713225600000,1713312000000,1713398400000,1713484800000,1713744000000,1713830400000,1713916800000,1714003200000,1714089600000,1714348800000,1714435200000,1714521600000,1714608000000,1714694400000,1714953600000,1715040000000,1715126400000,1715212800000,1715299200000,1715558400000,1715644800000,1715731200000,1715817600000,1715904000000,1716163200000,1716249600000,1716336000000,1716422400000,1716508800000,1716854400000,1716940800000,1717027200000,1717113600000,1717372800000,1717459200000,1717545600000,1717632000000,1717718400000,1717977600000,1718064000000,1718150400000,1718236800000,1718323200000,1718582400000,1718668800000,1718841600000,1718928000000,1719187200000,1719273600000,1719360000000,1719446400000,1719532800000,1719792000000,1719878400000,1719964800000,1720137600000,1720396800000,1720483200000,1720569600000,1720656000000],
+          "series":[198.9,200.13,194.77,196.06,186.82,193.41,193.54,195.54,99941.74,104634.7,99586.38,94587.45,94602.58,91095.58,89467.36,83927.78,86367.91,90213.06,91095.01,89636.4,93753.96,94873.31,89440.37,87518,90755.06,96159.38,99311.2,99311.2,99124.66,99666.15,100344.5,101004.3,102884.57,104629.04,103986.14,103755.35,105894.28,106438.26,106372.32,104789.84,107719.42,108889.75,106611.17,103186.28,103072.01,104076.42,104849.36,111172.44,111040.58,110628.53,111798.76,114103.41,113969.3,113953.61,118972.49,117909.8,117233.55,121502.16,120386.77,116313,120193.41,118477.11,119335.33,117457.78,119383.06,123038.67,126058.23,130353.98,129558.07,129558.07,174185.18,174657.79],
+          "deposit_adjusted_series":[200,200.34,194.98,196.27,187.01,193.6,193.72,195.71,195.41,204.59,194.71,184.94,184.97,178.11,174.93,164.1,168.87,176.39,178.11,175.26,183.31,185.5,174.88,171.12,177.45,188.01,194.18,194.18,193.81,194.87,196.2,197.49,201.16,210.71,209.42,208.95,213.26,214.36,214.22,211.03,216.94,219.28,214.71,207.81,207.58,209.6,211.16,223.89,223.63,222.8,225.15,229.79,240,240,250.57,248.33,246.91,255.9,253.55,244.97,253.14,253.74,255.58,251.56,255.68,263.51,271.01,279.18,279.62,279.62,279.09,279.85],
+        };
+        
+        try {
+          // Fetch benchmark data from the API
+          const benchmarkData = await fetchBenchmarkData();
+          
+          // Combine strategy data with benchmark data
+          let jsonData;
+          
+          if (benchmarkData) {
+            // Align benchmark data with strategy data
+            const alignedBenchmarkSeries = alignBenchmarkData(strategyData, benchmarkData);
+            
+            if (alignedBenchmarkSeries) {
+              // If benchmark alignment succeeded
+              jsonData = {
+                ...strategyData,
+                benchmark_series: alignedBenchmarkSeries
+              };
+              log(`Using aligned benchmark data with ${alignedBenchmarkSeries.length} points`);
+            }
+          }
+          
+          if (!jsonData) {
+            // Fallback to sample benchmark data if API fails
+            jsonData = {...strategyData};
+            log('Using fallback without benchmark data');
+          }
+          
+          // Log data being sent
+          console.log("Sending data with benchmark:", jsonData.benchmark_series.length, "values");
+          
+          // Send the data to the worker for processing
+          log('Sending QuantStats request...');
+          pyodideWorker.postMessage({
+            type: 'run',
+            task: 'quantstats',
+            data: jsonData
+          });
+          
+          // Also request the tearsheet
+          log('Sending tearsheet request...');
+          pyodideWorker.postMessage({
+            type: 'run',
+            task: 'tearsheet',
+            data: jsonData
+          });
+        } catch (error) {
+          showError(`Error sending message to worker: ${error.message}\nStack: ${error.stack}`);
+          log(`Error sending message: ${error.message}`);
+          statusEl.textContent = 'Error running QuantStats!';
+        }
+      }
+
+      // Check if Pyodide is available
+      function checkPyodideAvailability() {
+        log('Checking Pyodide availability...');
+        
+        fetch('./pyodide/pyodide.js')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Failed to load pyodide.js (${response.status} ${response.statusText})`);
+            }
+            return response.text();
+          })
+          .then(() => {
+            log('Pyodide script is available. Initializing worker...');
+            initWorker();
+          })
+          .catch(error => {
+            showError(`Pyodide not available: ${error.message}. Make sure the ./pyodide/pyodide.js file exists and is accessible.`);
+            log(`Error loading Pyodide: ${error.message}`);
+            statusEl.textContent = 'Error loading Pyodide!';
+          });
+      }
+
+      // Set up event listeners
+      document.addEventListener('DOMContentLoaded', function() {
+        // Log browser info
+        log(`Browser: ${navigator.userAgent}`);
+        log(`URL: ${window.location.href}`);
+        log(`Cross-Origin Isolated: ${window.crossOriginIsolated ? 'Yes' : 'No'}`);
+        
+        document.getElementById('run-button').addEventListener('click', runQuantStats);
+        checkPyodideAvailability();
+      });
     </script>
   </body>
 </html>
