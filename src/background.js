@@ -2,6 +2,203 @@ let pyodideReadyPromise;
 let queue = [];
 let isProcessing = false;
 
+// Helper function for logging
+function log(message) {
+  console.log(`[Composer Quant Tools] ${message}`);
+}
+
+function generateReturnsArrayFromDepositAdjustedSeries(deposit_adjusted_series) {
+  let previousValue = deposit_adjusted_series[0];
+  return deposit_adjusted_series.map((point) => {
+    const thisValue = (point - previousValue) / previousValue;
+    previousValue = point;
+    return thisValue;
+  });
+}
+
+function getSeriesData(type, backtestData, symphony) {
+  let series_data = { deposit_adjusted_series: [], epoch_ms: [] };
+  if (type === "backtest") {
+    Object.entries(backtestData.dvm_capital[symphony.id]).forEach(
+      ([day, amount]) => {
+        series_data.epoch_ms.push(day * 24 * 60 * 60 * 1000);
+        series_data.deposit_adjusted_series.push(amount);
+      },
+    );
+  } else if (type === "oos") {
+    const oosStartDate = new Date(
+      symphony.last_semantic_update_at.split("[")[0],
+    ); // this is removing the timezone
+    Object.entries(backtestData.dvm_capital[symphony.id]).forEach(
+      ([day, amount]) => {
+        if (oosStartDate >= new Date(day * 24 * 60 * 60 * 1000)) {
+          return;
+        }
+        series_data.epoch_ms.push(day * 24 * 60 * 60 * 1000);
+        series_data.deposit_adjusted_series.push(amount);
+      },
+    );
+  }
+  return (type === "backtest" || type === "oos") ? series_data : undefined;
+}
+
+// Fetch benchmark data from Composer API
+async function fetchBenchmarkData() {
+  try {
+    // First check if we have cached data
+    const cachedData = await getBenchmarkFromCache();
+    if (cachedData) {
+      log('Using cached benchmark data');
+      return cachedData;
+    }
+    
+    log('Fetching SPY benchmark data...');
+    
+    const symphonyId = 'gP9YEyPpXRQj0hEDRHNp'; // The specific Symphony ID for a symphony that only holds SPY
+    const response = await fetch(`https://backtest-api.composer.trade/api/v2/public/symphonies/${symphonyId}/backtest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        capital: 10000,
+        apply_reg_fee: true,
+        apply_taf_fee: true,
+        apply_subscription: 'none',
+        backtest_version: 'v2',
+        slippage_percent: 0,
+        spread_markup: 0,
+        start_date: '1990-01-01',
+        end_date: new Date().toISOString().split('T')[0],
+        benchmark_symphonies: [],
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+
+    log('Benchmark data fetched successfully');
+    
+    // Extract the relevant series data
+    const benchmarkResponseData = data;
+    if (!benchmarkResponseData || !benchmarkResponseData.dvm_capital) {
+      throw new Error('Invalid benchmark data format');
+    }
+    
+    const benchmark_series_data = getSeriesData('backtest', benchmarkResponseData, {id: symphonyId});
+    
+    // Cache the benchmark data
+    saveBenchmarkToCache(benchmark_series_data);
+    
+    log(`Processed ${benchmark_series_data.deposit_adjusted_series.length} benchmark data points`);
+    return benchmark_series_data;
+  } catch (error) {
+    log(`Error fetching benchmark data: ${error.message}`);
+    console.error(`Failed to fetch benchmark data: ${error.message}`);
+    
+    // Return fallback data if API fails
+    return null;
+  }
+}
+
+// Save benchmark data to IndexedDB
+function saveBenchmarkToCache(benchmarkData) {
+  try {
+    const cacheKey = 'spy_benchmark_data';
+    const cacheExpiry = Date.now() + 12 * 60 * 60 * 1000; // 12 hours
+    
+    // Store the data in IndexedDB
+    setCache(cacheKey, benchmarkData, cacheExpiry)
+      .then(() => log('Benchmark data saved to cache'))
+      .catch(error => log(`Warning: Could not save benchmark to cache: ${error.message}`));
+  } catch (error) {
+    log(`Warning: Could not save benchmark to cache: ${error.message}`);
+  }
+}
+
+// Get benchmark data from IndexedDB
+function getBenchmarkFromCache() {
+  return new Promise((resolve, reject) => {
+    try {
+      const cacheKey = 'spy_benchmark_data';
+      
+      getCache(cacheKey).then(cachedItem => {
+        if (!cachedItem || cachedItem.expiry <= Date.now()) {
+          log('Benchmark cache is missing or expired, will fetch fresh data');
+          resolve(null);
+          return;
+        }
+        
+        log(`Retrieved benchmark data from cache (${cachedItem.value.deposit_adjusted_series.length} points)`);
+        resolve(cachedItem.value);
+      }).catch(error => {
+        log(`Warning: Could not retrieve benchmark from cache: ${error.message}`);
+        resolve(null);
+      });
+    } catch (error) {
+      log(`Warning: Could not retrieve benchmark from cache: ${error.message}`);
+      resolve(null);
+    }
+  });
+}
+
+// Align benchmark data with strategy data
+function alignBenchmarkData(strategyData, benchmarkData) {
+  log('Aligning benchmark data with strategy data...');
+  
+  if (!benchmarkData || !benchmarkData.epoch_ms || !benchmarkData.deposit_adjusted_series) {
+    log('No benchmark data to align');
+    return null;
+  }
+  
+  const strategyDates = strategyData.epoch_ms;
+  const benchmarkDates = benchmarkData.epoch_ms;
+  const benchmarkValues = benchmarkData.deposit_adjusted_series;
+  
+  // Create a map of benchmark dates to values for quick lookup
+  const benchmarkMap = {};
+  for (let i = 0; i < benchmarkDates.length; i++) {
+    benchmarkMap[benchmarkDates[i]] = benchmarkValues[i];
+  }
+  
+  // Find the closest benchmark date for each strategy date
+  const alignedBenchmarkSeries = [];
+  for (const strategyDate of strategyDates) {
+    // First check for exact match
+    if (benchmarkMap[strategyDate] !== undefined) {
+      alignedBenchmarkSeries.push(benchmarkMap[strategyDate]);
+      continue;
+    }
+    
+    // If no exact match, find the closest date before the strategy date
+    let closestDate = null;
+    let closestValue = null;
+    
+    for (let i = 0; i < benchmarkDates.length; i++) {
+      const benchmarkDate = benchmarkDates[i];
+      if (benchmarkDate <= strategyDate && (closestDate === null || benchmarkDate > closestDate)) {
+        closestDate = benchmarkDate;
+        closestValue = benchmarkValues[i];
+      }
+    }
+    
+    if (closestValue !== null) {
+      alignedBenchmarkSeries.push(closestValue);
+    } else {
+      // If no earlier date found, use the earliest available
+      alignedBenchmarkSeries.push(benchmarkValues[0]);
+    }
+  }
+  
+  log(`Aligned benchmark data: ${alignedBenchmarkSeries.length} points`);
+  return alignedBenchmarkSeries;
+}
+
+
+
 function processQueue() {
   if (isProcessing || queue.length === 0) return;
   isProcessing = true;
@@ -66,28 +263,18 @@ async function getTearsheetHtml(symphony, series_data, type, backtestData) {
   //   "deposit_adjusted_series":[200]
   // }
 
-  if (type === "backtest") {
-    series_data = { deposit_adjusted_series: [], epoch_ms: [] };
-    Object.entries(backtestData.dvm_capital[symphony.id]).forEach(
-      ([day, amount]) => {
-        series_data.epoch_ms.push(day * 24 * 60 * 60 * 1000);
-        series_data.deposit_adjusted_series.push(amount);
-      },
-    );
-  } else if (type === "oos") {
-    const oosStartDate = new Date(
-      symphony.last_semantic_update_at.split("[")[0],
-    ); // this is removing the timezone
-    series_data = { deposit_adjusted_series: [], epoch_ms: [] };
-    Object.entries(backtestData.dvm_capital[symphony.id]).forEach(
-      ([day, amount]) => {
-        if (oosStartDate >= new Date(day * 24 * 60 * 60 * 1000)) {
-          return;
-        }
-        series_data.epoch_ms.push(day * 24 * 60 * 60 * 1000);
-        series_data.deposit_adjusted_series.push(amount);
-      },
-    );
+  series_data = getSeriesData(type, backtestData, symphony) || series_data;
+
+  const benchmarkData = await fetchBenchmarkData();
+  
+  if (benchmarkData) {
+    // Align benchmark data with strategy data
+    const alignedBenchmarkSeries = alignBenchmarkData(series_data, benchmarkData);
+    
+    if (alignedBenchmarkSeries) {
+      // If benchmark alignment succeeded
+      series_data.benchmark_series = alignedBenchmarkSeries
+    }
   }
   // if type is live then we don't need to do anything since the series_data is already in the correct format
 
@@ -134,12 +321,22 @@ async function getTearsheetHtml(symphony, series_data, type, backtestData) {
         # deposit_adjusted_series = pd.Series(data['deposit_adjusted_series'], index=datetime_series, name='deposit_adjusted_series')
         returns_series = pd.Series(data['returns'], index=datetime_series, name='returns')
 
+        # Create a benchmark Series if benchmark data is provided
+        benchmark = None
+        if 'benchmark_series' in data and len(data['benchmark_series']) > 0:
+            benchmark_series = pd.Series(data['benchmark_series'], index=datetime_series, name='SPY')
+            # Convert benchmark to returns if needed
+            if not pd.Series(benchmark_series.pct_change().dropna()).between(-1, 1).all():
+                benchmark = benchmark_series.pct_change().dropna()
+            else:
+                benchmark = benchmark_series
+
         # Generate HTML report to a temporary file
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         temp_file_path = temp_file.name
         temp_file.close()
 
-        qs.reports.html(returns_series, title=symphony_name, output=temp_file_path)
+        qs.reports.html(returns_series, benchmark=benchmark, title=symphony_name, output=temp_file_path)
         with open(temp_file_path, 'r', encoding='utf-8') as file:
             html_report_content = file.read()
         os.remove(temp_file_path)
@@ -212,16 +409,6 @@ async function getQuantStats(symphony, series_data) {
     console.error(err);
     return { error: "An error occurred: " + err.message };
   }
-}
-
-function generateReturnsArrayFromDepositAdjustedSeries(deposit_adjusted_series) {
-  let previousValue = deposit_adjusted_series[0];
-  return deposit_adjusted_series.map((point) => {
-    const thisValue = (point - previousValue) / previousValue;
-    previousValue = point;
-    return thisValue;
-  });
-
 }
 
 function openDB() {
