@@ -582,6 +582,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: false, error: error.message });
         }
         sendResponse({ success: true, message: 'data sent' });
+        resolve();
         // .then((response) => {
         //   if (response.ok) {
         //     response.json().then((data) => {

@@ -56,6 +56,7 @@ const columnOptions = [
   "Worst Month",
   "Worst Year",
   "YTD",
+  // these are not returned from quantstats
   "Running Days",
   "Avg. Daily Return",
   "Median Daily Return",
