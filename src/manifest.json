@@ -4,7 +4,8 @@
   "description": "Utility extension that makes working with Composer Symphonies easier",
   "version": "1.8.1",
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "permissions": [
     "storage",

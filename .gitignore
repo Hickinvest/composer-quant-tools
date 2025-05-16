@@ -7,3 +7,5 @@ src/lib/jslib
 
 .env
 .DS_Store
+
+scrapers

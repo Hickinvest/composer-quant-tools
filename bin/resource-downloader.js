@@ -15,8 +15,8 @@ const jsLibDownloadDir = path.resolve(__dirname, '../src/lib/jslib');
 
 
 // Function to download file if it doesn't exist
-const downloadIfNotExists = (url, downloadDir) => {
-  const fileName = path.basename(url);
+const downloadIfNotExists = (url, downloadDir, fileName) => {
+  fileName = fileName ||path.basename(url);
   const filePath = path.join(downloadDir, fileName);
 
   if (fs.existsSync(filePath)) {
@@ -55,7 +55,9 @@ const downloadIfNotExists = (url, downloadDir) => {
 
 // URLs to download
 const pyodideUrls = [
+  {url:"https://cdn.jsdelivr.net/npm/xhr-shim@0.1.3/src/index.js", fileName:"xhr-shim.js"},
   "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js",
+  "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.mjs",
   "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/python_stdlib.zip",
   "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.asm.wasm",
   "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide-lock.json",
@@ -123,7 +125,15 @@ function downloadResources(urls, downloadDir) {
   if (!fs.existsSync(downloadDir)) {
     fs.mkdirSync(downloadDir, { recursive: true });
   }
-  urls.forEach(url => downloadIfNotExists(url, downloadDir));
+  urls.forEach(resource => {
+    if (typeof resource === 'object') {
+      const url = resource.url;
+      const filename = resource.fileName;
+      downloadIfNotExists(url, downloadDir, filename)
+    } else {
+      downloadIfNotExists(resource, downloadDir)
+    }
+  });
 }
 
 downloadResources(pyodideUrls, pyodideDownloadDir);
