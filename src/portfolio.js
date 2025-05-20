@@ -38,7 +38,6 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
     const mainTable = document.querySelector("main table");
     updateColumns(mainTable, extraColumns);
     updateTableRows();
-    Sortable.initTable(mainTable);
   }
 });
 
@@ -99,7 +98,6 @@ export const startInterval = async () => {
           // Re-initialize columns in case they were removed
           updateColumns(mainTable, extraColumns);
           updateTableRows();
-          Sortable.initTable(mainTable);
         }
       }
     }
@@ -142,10 +140,6 @@ const startSymphonyPerformanceSync = async (mainTable) => {
 
   // Update rows with data
   updateTableRows();
-  
-  // Initialize sorting
-  Sortable.initTable(mainTable);
-  
 
   log("all symphony stats added", performanceData);
 };
@@ -216,7 +210,6 @@ function updateColumns(mainTable, extraColumns) {
     if (!th) {
       th = document.createElement("th");
       th.className = "group relative flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[160px] extra-column";
-      th.setAttribute("data-sortable-type", "numeric");
       th.dataset.key = columnName;
       const theadRowWrapper = theadFirstRow.querySelector("th:last-child").parentElement;
       theadRowWrapper.append(th);
