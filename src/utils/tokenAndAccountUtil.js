@@ -116,6 +116,7 @@ function getTokenAndAccountUtil() {
     const currentAccountId = accountInfo['account-id'];
 
     if (
+      token &&
       currentAccountId !== accountId || 
       (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000)
     ) {

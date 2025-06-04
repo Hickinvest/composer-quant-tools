@@ -1,5 +1,5 @@
 import { getTokenAndAccount } from "./tokenAndAccountUtil.js";
-import { getSymphonyDailyChange, getSymphonyStatsMeta } from "../portfolio.js";
+import { getSymphonyDailyChange, getSymphonyStatsMeta } from "../apiService.js";
 import { log } from "./logger.js";
 
 function isLoggedIn() {
