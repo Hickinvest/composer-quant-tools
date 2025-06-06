@@ -46,7 +46,6 @@ function buildReturnsArray(
   );
 
   return dailyChanges.epoch_ms.reduce((acc, change, index) => {
-    // for the first item we should get the first deploy which should match the first date in the dailyChanges epoch_ms
     const dateString = new Date(change).toDateString();
     if (index === 0) {
       const firstDeployAmount = sortedDeployments?.[0]?.cash_change || 0;
@@ -54,12 +53,14 @@ function buildReturnsArray(
         log("No deploy amount found for symphony");
       }
       deploymentIndexToAccountFor++;
-      acc.push({
-        dateString,
-        percentChange:
-          (dailyChanges[calculationKey][index] - firstDeployAmount) /
-          firstDeployAmount,
-      });
+      if (firstDeployAmount !== 0) {
+        acc.push({
+          dateString,
+          percentChange:
+            (dailyChanges[calculationKey][index] - firstDeployAmount) /
+            firstDeployAmount,
+        });
+      }
     } else if (
       calculationKey === "series" &&
       sortedDeployments[deploymentIndexToAccountFor] &&
@@ -69,26 +70,28 @@ function buildReturnsArray(
         sortedDeployments[deploymentIndexToAccountFor].cash_change,
       )
     ) {
-      // dailyChanges[calculationKey][index] has changed by the deploy amount give or take 5%
-      // this is a guess that the deploy happened on this day
       const currentDayDeployAmount =
         sortedDeployments[deploymentIndexToAccountFor].cash_change;
       const lastDayAmount =
         dailyChanges[calculationKey][index - 1] + currentDayDeployAmount;
-      acc.push({
-        dateString,
-        percentChange:
-          (dailyChanges[calculationKey][index] - lastDayAmount) / lastDayAmount,
-      });
+      if (lastDayAmount !== 0) {
+        acc.push({
+          dateString,
+          percentChange:
+            (dailyChanges[calculationKey][index] - lastDayAmount) /
+            lastDayAmount,
+        });
+      }
       deploymentIndexToAccountFor++;
     } else {
-      acc.push({
-        dateString,
-        percentChange:
-          (dailyChanges[calculationKey][index] -
-            dailyChanges[calculationKey][index - 1]) /
-          dailyChanges[calculationKey][index - 1],
-      });
+      const prevValue = dailyChanges[calculationKey][index - 1];
+      if (prevValue !== 0) {
+        acc.push({
+          dateString,
+          percentChange:
+            (dailyChanges[calculationKey][index] - prevValue) / prevValue,
+        });
+      }
     }
 
     if (
@@ -96,33 +99,14 @@ function buildReturnsArray(
       new Date(dailyChanges.epoch_ms).toDateString() !==
         new Date().toDateString() // last day is not today
     ) {
-      // add a new point for today
-      // this will change pretty frequently
-      acc.push({
-        dateString: new Date().toDateString(),
-        // if you are using the deposit_adjusted_series key then you should use the last value in the series
-        // deposit_adjusted_series is like some sort of percentage adjusted series
-        percentChange:
-          (currentValue - dailyChanges.series[index]) /
-          dailyChanges.series[index],
-      });
+      const lastValue = dailyChanges.series[index];
+      if (lastValue !== 0) {
+        acc.push({
+          dateString: new Date().toDateString(),
+          percentChange: (currentValue - lastValue) / lastValue,
+        });
+      }
     }
-
-    // else if (symphonyDeploys[dateString]) {
-    //     const currentDayDeployAmount = symphonyDeploys[dateString]?.cash_change;
-    //     // this may end up being very inaccurate
-    //     // some of the day might have had the new deployed capital and some might not so calculating the growth could be very incorrect
-    //     const lastDayAmount = dailyChanges[calculationKey][index - 1] + currentDayDeployAmount;
-    //     acc.push({
-    //         dateString,
-    //         percentChange:(dailyChanges[calculationKey][index] - lastDayAmount) / lastDayAmount
-    //     });
-    // } else {
-    //     acc.push({
-    //         dateString,
-    //         percentChange:(dailyChanges[calculationKey][index] - dailyChanges[calculationKey][index - 1]) / dailyChanges[calculationKey][index - 1]
-    //     });
-    // }
     return acc;
   }, []);
 }
@@ -167,8 +151,19 @@ export async function addQuantstatsToSymphony(symphony, accountDeploys) {
 }
 
 function calculateAverageAndMedian(data) {
-  // Extract percent changes
-  let percentChanges = data.map((entry) => entry.percentChange);
+  // Extract percent changes and filter out invalid values
+  let percentChanges = data
+    .map((entry) => entry.percentChange)
+    .filter(
+      (value) =>
+        typeof value === "number" &&
+        isFinite(value) &&
+        !isNaN(value),
+    );
+
+  if (percentChanges.length === 0) {
+    return { average: 0, median: 0 };
+  }
 
   // Calculate the sum of percent changes
   let sum = percentChanges.reduce((acc, value) => acc + value, 0);

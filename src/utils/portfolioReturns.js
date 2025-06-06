@@ -122,6 +122,9 @@ function injectYtdReturnWithTooltip({
   ytdReturn,
   ...stats
 }) {
+  // If ytdReturn is not provided, don't inject anything
+  if (ytdReturn === undefined) return;
+
   const banner = document.querySelector('.metric-banner');
   if (!banner) return;
   const grid = banner.querySelector('.grid');
@@ -207,6 +210,10 @@ async function waitForMetricBannerAndInject(stats, timeoutMs = 10000) {
 }
 
 export async function logPortfolioReturns() {
+  // Check if YTD returns are enabled
+  const result = await chrome.storage.local.get(['enableYtdReturns']);
+  const enableYtdReturns = result?.enableYtdReturns ?? true;
+
   const { token, account } = await getTokenAndAccount();
   const history = await fetchPortfolioHistory(account, token);
   if (!history || !history.epoch_ms || !history.series) {
@@ -229,29 +236,40 @@ export async function logPortfolioReturns() {
   const netDeposits = sumNetDeposits(allTransfers, lastDate);
   const totalReturn = (finalValue - netDeposits) / (netDeposits || 1);
 
-  // --- YTD Return ---
-  const now = new Date();
-  const yearStart = new Date(now.getFullYear(), 0, 1);
-  // Find the first trading day of the year in history
-  let ytdStartIdx = history.epoch_ms.findIndex(ts => ts >= yearStart.getTime());
-  if (ytdStartIdx === -1) ytdStartIdx = 0; // fallback
-  const ytdStartValue = history.series[ytdStartIdx];
-  const ytdStartDate = new Date(history.epoch_ms[ytdStartIdx]);
-  const netYtdDeposits = sumNetDeposits(allTransfers, lastDate, ytdStartDate);
-  const ytdReturn = (finalValue - ytdStartValue - netYtdDeposits) / ((ytdStartValue + netYtdDeposits) || 1);
-
   log("--- Portfolio Returns Breakdown ---");
   log("[Total Period]");
   log(`  Start Value: $${startValue.toFixed(2)}`);
   log(`  End Value:   $${finalValue.toFixed(2)}`);
   log(`  Net Deposits (all time): $${netDeposits.toFixed(2)}`);
   log(`  Total Return: ${(totalReturn * 100).toFixed(2)}%`);
-  log("");
-  log("[Year-to-Date]");
-  log(`  Start Value (first trading day): $${ytdStartValue.toFixed(2)} (${ytdStartDate.toISOString().slice(0,10)})`);
-  log(`  End Value:   $${finalValue.toFixed(2)}`);
-  log(`  Net Deposits (YTD): $${netYtdDeposits.toFixed(2)}`);
-  log(`  YTD Return: ${(ytdReturn * 100).toFixed(2)}%`);
+
+  let ytdStats = null;
+  if (enableYtdReturns) {
+    // --- YTD Return ---
+    const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    // Find the first trading day of the year in history
+    let ytdStartIdx = history.epoch_ms.findIndex(ts => ts >= yearStart.getTime());
+    if (ytdStartIdx === -1) ytdStartIdx = 0; // fallback
+    const ytdStartValue = history.series[ytdStartIdx];
+    const ytdStartDate = new Date(history.epoch_ms[ytdStartIdx]);
+    const netYtdDeposits = sumNetDeposits(allTransfers, lastDate, ytdStartDate);
+    const ytdReturn = (finalValue - ytdStartValue - netYtdDeposits) / ((ytdStartValue + netYtdDeposits) || 1);
+
+    log("");
+    log("[Year-to-Date]");
+    log(`  Start Value (first trading day): $${ytdStartValue.toFixed(2)} (${ytdStartDate.toISOString().slice(0,10)})`);
+    log(`  End Value:   $${finalValue.toFixed(2)}`);
+    log(`  Net Deposits (YTD): $${netYtdDeposits.toFixed(2)}`);
+    log(`  YTD Return: ${(ytdReturn * 100).toFixed(2)}%`);
+
+    ytdStats = {
+      ytdStartValue,
+      ytdStartDate,
+      netYtdDeposits,
+      ytdReturn
+    };
+  }
   log("------------------------------------");
 
   // Wait for metric banner and inject into UI
@@ -260,9 +278,6 @@ export async function logPortfolioReturns() {
     finalValue,
     netDeposits,
     totalReturn,
-    ytdStartValue,
-    ytdStartDate,
-    netYtdDeposits,
-    ytdReturn
+    ...(ytdStats || {})
   });
 } 

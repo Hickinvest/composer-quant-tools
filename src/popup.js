@@ -79,6 +79,7 @@ const defaultSettings = {
   userDefinedUploadUrl: null,
   enableTooltips: true,
   enableCmdClick: true,
+  enableYtdReturns: true,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -226,6 +227,15 @@ async function initEnableCmdClick() {
   });
 }
 
+async function initEnableYtdReturns() {
+  const enableYtdReturnsCheckbox = document.getElementById('enableYtdReturns');
+  enableYtdReturnsCheckbox.checked = currentSettings.enableYtdReturns ?? true;
+  
+  enableYtdReturnsCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableYtdReturns: e.target.checked });
+  });
+}
+
 function positionTooltips() {
   const tooltips = document.querySelectorAll('.tooltip-container');
   tooltips.forEach(tooltip => {
@@ -265,6 +275,7 @@ async function initializePopup() {
   await initUserDefinedUploadUrl();
   await initEnableTooltips();
   await initEnableCmdClick();
+  await initEnableYtdReturns();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }
