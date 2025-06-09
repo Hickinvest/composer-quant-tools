@@ -7,5 +7,6 @@ src/lib/jslib
 
 .env
 .DS_Store
+.history
 
 scrapers

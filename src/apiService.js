@@ -29,6 +29,10 @@ export async function fetchAchTransfers(account, token, year) {
 // --- Moved from portfolio.js ---
 const TwelveHours = 12 * 60 * 60 * 1000;
 export const performanceData = {};
+// expose performanceData to the window object
+window.composerQuantTools = {
+  performanceData,
+};
 
 export async function getSymphonyDailyChange(
   symphonyId,
