@@ -23,9 +23,9 @@ export function setExtraColumns(columns) {
 export const startPortfolioTableInterval = async () => {
   const checkInterval = setInterval(async () => {
     if (window.location.pathname !== "/portfolio") return;
-    const mainTable = document.querySelector("main table");
+    const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
     const portfolioChart = document.querySelector('[data-highcharts-chart], .border-graph-axislines');
-    const mainTableContent = document.querySelectorAll("main table td");
+    const mainTableContent = document.querySelectorAll("main :not(.tv-lightweight-charts) > table td");
     if (!mainTable) return;
     if (mainTable.classList.contains('composer-quant-tools-initialized')) {
       const hasAnyExtraColumns = mainTable.querySelector('.extra-column');
@@ -149,7 +149,7 @@ export async function getSymphonyPerformanceInfo(options = {}) {
 }
 
 export function updateTableRows() {
-  const mainTableBody = document.querySelector("main table tbody");
+  const mainTableBody = document.querySelector("main :not(.tv-lightweight-charts) > table tbody");
   const rows = mainTableBody?.querySelectorAll("tr");
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
     if (symphony.addedStats) {
@@ -166,7 +166,7 @@ export function updateTableRows() {
 }
 
 export function extendSymphonyStatsRow(symphony) {
-  const mainTableBody = document.querySelector("main table tbody");
+  const mainTableBody = document.querySelector("main :not(.tv-lightweight-charts) > table tbody");
   const rows = mainTableBody?.querySelectorAll("tr");
   for (let row of rows) {
     const nameTd = row.querySelector("td:first-child a");
@@ -215,7 +215,7 @@ export function onScrollUpdateTableHeaderAndNav() {
   if (window.location.pathname !== "/portfolio") {
     return;
   }
-  const mainTable = document.querySelector("main table");
+  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
   const nav = document.querySelector("nav");
   const mainTableHeader = mainTable.querySelector("thead");
   const headerRect = mainTableHeader.getBoundingClientRect();

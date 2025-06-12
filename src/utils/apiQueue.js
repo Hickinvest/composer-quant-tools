@@ -4,6 +4,7 @@
  */
 
 import { log } from "./logger.js";
+import { getTokenAndAccount } from "./tokenAndAccountUtil.js";
 
 class ApiQueue {
   constructor(options = {}) {
@@ -155,6 +156,18 @@ class ApiQueue {
   fetch(url, options = {}) {
     return this.enqueue(async () => {
       try {
+        // refetch the token as it is possible to have an expired token
+        if(options.headers?.Authorization?.includes('Bearer')) {
+          const { token } = await getTokenAndAccount();
+          options = {
+            ...options,
+            headers: {
+              ...options.headers,
+              Authorization: `Bearer ${token}`,
+            },
+          };
+        }
+
         const response = await fetch(url, options);
         
         // If response is not ok, throw an error with the response attached

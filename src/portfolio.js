@@ -15,7 +15,7 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
   if (namespace === "local" && changes.addedColumns) {
     log("extraColumns updated:", changes.addedColumns.newValue);
     setExtraColumns(changes.addedColumns.newValue);
-    const mainTable = document.querySelector("main table");
+    const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
     updateColumns(mainTable, changes.addedColumns.newValue);
     updateTableRows();
   }
