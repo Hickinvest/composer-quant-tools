@@ -1,6 +1,6 @@
 import { log } from "./logger.js";
 
-function isWithinPercentageRange(
+export function isWithinPercentageRange(
   numberToCheck,
   previousValue,
   valueChange,
@@ -25,7 +25,7 @@ function isWithinPercentageRange(
   return isWithinRange;
 }
 
-function getDeploysForSymphony(symphony, accountDeploys) {
+export function getDeploysForSymphony(symphony, accountDeploys) {
   return accountDeploys
     .filter((deploy) => deploy.symphony_id === symphony.id)
     .reduce((acc, deploy) => {
@@ -34,7 +34,7 @@ function getDeploysForSymphony(symphony, accountDeploys) {
     }, {});
 }
 
-function buildReturnsArray(
+export function buildReturnsArray(
   dailyChanges,
   symphonyDeploys,
   currentValue,
@@ -111,7 +111,7 @@ function buildReturnsArray(
   }, []);
 }
 
-function addTodaysChanges(symphony) {
+export function addTodaysChanges(symphony) {
   symphony.dailyChanges.series.push(symphony.value);
   symphony.dailyChanges.deposit_adjusted_series.push(
     symphony.deposit_adjusted_value,
@@ -119,7 +119,7 @@ function addTodaysChanges(symphony) {
   symphony.dailyChanges.epoch_ms.push(Date.now());
 }
 
-function buildSymphonyPercentages(symphony, symphonyDeploys) {
+export function buildSymphonyPercentages(symphony, symphonyDeploys) {
   symphony.dailyChanges.percentageReturns = buildReturnsArray(
     symphony.dailyChanges,
     symphonyDeploys,
@@ -150,7 +150,7 @@ export async function addQuantstatsToSymphony(symphony, accountDeploys) {
   });
 }
 
-function calculateAverageAndMedian(data) {
+export function calculateAverageAndMedian(data) {
   // Extract percent changes and filter out invalid values
   let percentChanges = data
     .map((entry) => entry.percentChange)
@@ -187,6 +187,142 @@ function calculateAverageAndMedian(data) {
 export function addGeneratedSymphonyStatsToSymphony(symphony, accountDeploys) {
   const symphonyDeploys = getDeploysForSymphony(symphony, accountDeploys);
   buildSymphonyPercentages(symphony, symphonyDeploys);
+
+  const { average, median } = calculateAverageAndMedian(
+    symphony.dailyChanges.percentageReturns,
+  );
+
+  symphony.addedStats = {
+    ...symphony.addedStats,
+    "Running Days": symphony.dailyChanges.percentageReturns.length,
+    "Avg. Daily Return": (average * 100).toFixed(3) + "%",
+    "Median Daily Return": (median * 100).toFixed(3) + "%",
+  };
+}
+
+export function getCashFlowsForSymphony(symphony, symphonyActivityHistory) {
+  if (!symphonyActivityHistory?.data) {
+    return [];
+  }
+
+  return symphonyActivityHistory.data
+    .filter(activity => 
+      activity.symphony_id === symphony.id && 
+      activity.cash_change !== null && 
+      activity.cash_change !== undefined &&
+      activity.type === "cash_adjustment_performed"
+    )
+    .map(activity => ({
+      amount: activity.cash_change,
+      date: new Date(activity.at),
+      type: activity.type
+    }))
+    .sort((a, b) => a.date - b.date);
+}
+
+export function calculateModifiedDietzReturn(bmv, emv, cashFlows, periodStart, periodEnd) {
+  // Filter cash flows that occurred during the period
+  const periodCashFlows = cashFlows.filter(cf => 
+    cf.date >= periodStart && cf.date <= periodEnd
+  );
+
+  if (periodCashFlows.length === 0) {
+    // No cash flows, use simple return
+    return bmv !== 0 ? (emv - bmv) / bmv : 0;
+  }
+
+  // Calculate total cash flows
+  const totalCashFlows = periodCashFlows.reduce((sum, cf) => sum + cf.amount, 0);
+  
+  // Calculate weighted cash flows
+  const totalDays = (periodEnd - periodStart) / (1000 * 60 * 60 * 24); // Convert to days
+  const weightedCashFlows = periodCashFlows.reduce((sum, cf) => {
+    const daysFromStart = (cf.date - periodStart) / (1000 * 60 * 60 * 24);
+    const weight = (totalDays - daysFromStart) / totalDays;
+    return sum + (cf.amount * weight);
+  }, 0);
+
+  // Modified Dietz formula: (EMV - BMV - ∑CF) / (BMV + ∑(CF × w))
+  const denominator = bmv + weightedCashFlows;
+  return denominator !== 0 ? (emv - bmv - totalCashFlows) / denominator : 0;
+}
+
+export function buildReturnsArrayWithModifiedDietz(
+  dailyChanges,
+  cashFlows,
+  currentValue,
+  calculationKey = "series"
+) {
+
+  return dailyChanges.epoch_ms.reduce((acc, change, index) => {
+    const dateString = new Date(change).toDateString();
+    const currentValue = dailyChanges[calculationKey][index];
+    
+    if (index === 0) {
+      // First day - no return to calculate
+      return acc;
+    }
+
+    const previousValue = dailyChanges[calculationKey][index - 1];
+    const periodStart = new Date(dailyChanges.epoch_ms[index - 1]);
+    const periodEnd = new Date(change);
+
+    const dailyReturn = calculateModifiedDietzReturn(
+      previousValue,
+      currentValue,
+      cashFlows,
+      periodStart,
+      periodEnd
+    );
+
+    acc.push({
+      dateString,
+      percentChange: dailyReturn
+    });
+
+    // Only add today's return if this is the last day and it's not today
+    // AND if the last day is not today
+    const lastDayDate = new Date(change);
+    const todayDate = new Date();
+    const isLastDay = index === dailyChanges.epoch_ms.length - 1;
+    const isLastDayToday = lastDayDate.toDateString() === todayDate.toDateString();
+    
+    if (isLastDay && !isLastDayToday) {
+      const todayStart = new Date(change);
+      const todayEnd = new Date();
+      
+      const todayReturn = calculateModifiedDietzReturn(
+        currentValue,
+        currentValue, // Use currentValue as both start and end for today
+        cashFlows,
+        todayStart,
+        todayEnd
+      );
+
+      acc.push({
+        dateString: new Date().toDateString(),
+        percentChange: todayReturn
+      });
+    }
+
+    return acc;
+  }, []);
+}
+
+export function buildSymphonyPercentagesWithModifiedDietz(symphony, symphonyActivityHistory) {
+  const cashFlows = getCashFlowsForSymphony(symphony,symphonyActivityHistory);
+
+  symphony.dailyChanges.percentageReturns = buildReturnsArrayWithModifiedDietz(
+    symphony.dailyChanges,
+    cashFlows,
+    symphony.value,
+    "series"
+  );
+  addTodaysChanges(symphony);
+}
+
+export function addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, symphonyActivityHistory) {
+  buildSymphonyPercentagesWithModifiedDietz(symphony, symphonyActivityHistory);
 
   const { average, median } = calculateAverageAndMedian(
     symphony.dailyChanges.percentageReturns,

@@ -15,7 +15,8 @@ async function getQuantStats(symphony, series_data) {
       error: `Symphony_name:${symphony.name} Symphony_id:${symphony.id} Not enough data to calculate QuantStats`,
     };
   }
-  series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
+  // series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
+  series_data.returns = symphony.dailyChanges.percentageReturns;
 
   const pyodide = await getPyodide();
   try {

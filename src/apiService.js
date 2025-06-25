@@ -36,7 +36,7 @@ window.composerQuantTools = {
 
 export async function getSymphonyDailyChange(
   symphonyId,
-  cacheTimeout = 0,
+  cacheTimeout = TwelveHours,
   timeToWaitBeforeCall = 0,
 ) {
   const cacheKey = "composerQuantTools-" + symphonyId;
@@ -68,6 +68,19 @@ export async function getSymphonyDailyChange(
       token,
     };
   }
+}
+
+export async function getSymphonyActivityHistory(symphonyId, cacheTimeout = TwelveHours) {
+  const { token, account } = await getTokenAndAccount();
+  const cacheKey = `composerQuantTools-symphony-activity-history-${symphonyId}`;
+  const symphonyStats = await makeApiCallWithCache(
+    // this limit is a hack to get all the activity history ... it sucks but it works
+    `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphonies/${symphonyId}/activity-history?limit=9999999&offset=0`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    { cacheKey, cacheTimeout },
+    `Get symphony activity history for ${symphonyId}`
+  );
+  return symphonyStats;
 }
 
 export async function getAccountDeploys(status = "SUCCEEDED") {

@@ -1,6 +1,6 @@
 // Table-specific logic for the portfolio page
-import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta } from "../apiService.js";
-import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony } from "./liveSymphonyPerformance.js";
+import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
+import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
 import { log } from "./logger.js";
 
 let extraColumns = [
@@ -96,10 +96,10 @@ export async function getSymphonyPerformanceInfo(options = {}) {
     return performanceData;
   }
   try {
-    const accountDeploys = await getAccountDeploys();
+    // const accountDeploys = await getAccountDeploys();
     const symphonyStats = await getSymphonyStatsMeta();
 
-    performanceData.accountDeploys = accountDeploys;
+    // performanceData.accountDeploys = accountDeploys;
     performanceData.symphonyStats = symphonyStats;
 
     // Process symphonies in batches
@@ -117,8 +117,12 @@ export async function getSymphonyPerformanceInfo(options = {}) {
             symphony.id,
             TwelveHours
           );
-          addGeneratedSymphonyStatsToSymphony(symphony, accountDeploys);
-          await addQuantstatsToSymphony(symphony, accountDeploys);
+
+          const symphonyActivityHistory = await getSymphonyActivityHistory(symphony.id);
+
+          // addGeneratedSymphonyStatsToSymphony(symphony, []);
+          addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, symphonyActivityHistory);
+          await addQuantstatsToSymphony(symphony, []);
           
           // Update the symphony in the performanceData
           const symphonyIndex = performanceData.symphonyStats.symphonies.findIndex(s => s.id === symphony.id);
