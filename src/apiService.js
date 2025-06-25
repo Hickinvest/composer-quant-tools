@@ -55,6 +55,12 @@ export async function getSymphonyDailyChange(
       },
       `Get symphony daily change for ${symphonyId}`
     );
+    // return symphonyStats;
+    // 86400000 is 24 hours in milliseconds
+    // there is a bug in the api where the epoch_ms is one day behind the actual date
+    // TODO: fix this if they ever fix it in the api
+    const oneDayInMs = 86400000;
+    symphonyStats.epoch_ms = symphonyStats.epoch_ms.map(epoch_ms => epoch_ms + oneDayInMs);
     return symphonyStats;
   } catch (error) {
     log(

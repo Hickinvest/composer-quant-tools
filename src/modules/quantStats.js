@@ -16,7 +16,7 @@ async function getQuantStats(symphony, series_data) {
     };
   }
   // series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
-  series_data.returns = symphony.dailyChanges.percentageReturns;
+  series_data.returns = symphony.dailyChanges.percentageReturns.map(d => d.percentChange);
 
   const pyodide = await getPyodide();
   try {

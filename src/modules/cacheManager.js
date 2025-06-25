@@ -1,6 +1,6 @@
 // IndexedDB cache management functions
 
-import { log } from './pyodide.js';
+import { log } from './logger.js';
 
 function openDB() {
   return new Promise((resolve, reject) => {

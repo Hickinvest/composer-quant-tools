@@ -4,6 +4,7 @@
 
 import apiQueue from './apiQueue.js';
 import { log } from './logger.js';
+import { setCache, getCache } from '../modules/cacheManager.js';
 
 /**
  * Make an API call with rate limiting and retries
@@ -52,21 +53,14 @@ export async function makeApiCallWithCache(url, options = {}, cacheOptions = {},
   
   // Check cache first if cacheKey is provided
   if (cacheKey) {
-    const cachedData = localStorage.getItem(cacheKey);
-    if (cachedData) {
-      try {
-        const { data, timestamp } = JSON.parse(cachedData);
-        const cacheTimeoutAgo = Date.now() - cacheTimeout;
-        
-        if (timestamp > cacheTimeoutAgo) {
-          return data;
-        }
-      } catch (e) {
-        // Invalid cache data, continue with API call
-        log(`Invalid cache data for ${cacheKey}`, e);
-        // Remove invalid cache entry
-        localStorage.removeItem(cacheKey);
+    try {
+      const cachedItem = await getCache(cacheKey);
+      if (cachedItem && cachedItem.expiry > Date.now()) {
+        return cachedItem.value;
       }
+    } catch (e) {
+      // Invalid cache data or IndexedDB error, continue with API call
+      log(`Cache error for ${cacheKey}:`, e);
     }
   }
   
@@ -77,15 +71,10 @@ export async function makeApiCallWithCache(url, options = {}, cacheOptions = {},
     // Cache the result if cacheKey is provided
     if (cacheKey && data) {
       try {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            data,
-            timestamp: Date.now(),
-          })
-        );
+        const expiry = Date.now() + cacheTimeout;
+        await setCache(cacheKey, data, expiry);
       } catch (cacheError) {
-        // Handle localStorage errors (e.g., quota exceeded)
+        // Handle IndexedDB errors (e.g., quota exceeded)
         log(`Failed to cache data for ${cacheKey}:`, cacheError);
         // Continue without caching
       }

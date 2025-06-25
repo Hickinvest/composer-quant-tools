@@ -254,7 +254,7 @@ export function buildReturnsArrayWithModifiedDietz(
   calculationKey = "series"
 ) {
 
-  return dailyChanges.epoch_ms.reduce((acc, change, index) => {
+  const returns = dailyChanges.epoch_ms.reduce((acc, change, index) => {
     const dateString = new Date(change).toDateString();
     const currentValue = dailyChanges[calculationKey][index];
     
@@ -307,6 +307,14 @@ export function buildReturnsArrayWithModifiedDietz(
 
     return acc;
   }, []);
+
+  // add the first day's returns
+  returns.unshift({
+    dateString: (new Date(dailyChanges.epoch_ms[0])).toDateString(),
+    percentChange: 0
+  });
+
+  return returns;
 }
 
 export function buildSymphonyPercentagesWithModifiedDietz(symphony, symphonyActivityHistory) {

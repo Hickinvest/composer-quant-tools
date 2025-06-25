@@ -25,14 +25,19 @@ async function getTearsheetHtml(symphony, series_data, type, backtestData) {
       series_data.benchmark_series = alignedBenchmarkSeries
     }
   }
-  // if type is live then we don't need to do anything since the series_data is already in the correct format
 
   if (series_data.epoch_ms.length <= 1) {
     return {
       error: `Symphony_name:${symphony.name} Symphony_id:${symphony.id} Not enough data to calculate tearsheet report`,
     };
   }
-  series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
+  if (type === "live") {
+    // when using live data we need to adjust for deposits and withdrawals
+    // this is done in the liveSymphonyPerformance.js file
+    series_data.returns = symphony.dailyChanges.percentageReturns.map(d => d.percentChange);
+  } else {
+    series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
+  }
 
   const pyodide = await getPyodide();
   try {

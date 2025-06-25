@@ -1,5 +1,6 @@
 import { getTokenAndAccount } from "./tokenAndAccountUtil.js";
-import { getSymphonyDailyChange, getSymphonyStatsMeta } from "../apiService.js";
+import { getSymphonyDailyChange, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
+import { addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
 import { log } from "./logger.js";
 
 function isLoggedIn() {
@@ -121,12 +122,13 @@ function renderTearsheetButton(factsheet) {
       name: symphonyName,
     };
     if (testType === "live") {
-      symphony = {
-        ...symphony,
-        dailyChanges: await getSymphonyDailyChange(
-          window.active_factsheet_symphonyId
-        ),
-      };
+      symphony.dailyChanges = await getSymphonyDailyChange(
+        symphony.id
+      );
+
+      const symphonyActivityHistory = await getSymphonyActivityHistory(symphony.id);
+      addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, symphonyActivityHistory);
+
     } else if (testType === "oos") {
       const { token } = (isLoggedIn() && (await getTokenAndAccount())) || {};
       const fetchHeaders = {};
