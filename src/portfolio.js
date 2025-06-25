@@ -1,5 +1,5 @@
 import { logPortfolioReturns } from "./utils/portfolioReturns.js";
-import { startPortfolioTableInterval, updateTableRows, updateColumns, onScrollUpdateTableHeaderAndNav, setExtraColumns } from "./utils/portfolioTable.js";
+import { startPortfolioTableInterval, updateTableRows, updateColumns, setupScrollListener, setExtraColumns } from "./utils/portfolioTable.js";
 import { log } from "./utils/logger.js";
 
 // Remove all table-specific logic from this file. Only keep portfolio orchestration and initialization.
@@ -22,8 +22,7 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
 });
 
 export function initPortfolio() {
-  window.removeEventListener('scroll', onScrollUpdateTableHeaderAndNav);
-  window.addEventListener('scroll', onScrollUpdateTableHeaderAndNav);
+  setupScrollListener();
   startPortfolioTableInterval();
   logPortfolioReturns();
 }

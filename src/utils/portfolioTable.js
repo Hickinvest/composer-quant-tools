@@ -216,6 +216,9 @@ export function onScrollUpdateTableHeaderAndNav() {
     return;
   }
   const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
+  if (!mainTable) {
+    return;
+  }
   const nav = document.querySelector("nav");
   const mainTableHeader = mainTable.querySelector("thead");
   const headerRect = mainTableHeader.getBoundingClientRect();
@@ -243,6 +246,11 @@ export function onScrollUpdateTableHeaderAndNav() {
       }
     }
   }
+}
+
+export function setupScrollListener() {
+  window.removeEventListener('scroll', onScrollUpdateTableHeaderAndNav);
+  window.addEventListener('scroll', onScrollUpdateTableHeaderAndNav);
 }
 
 export function getElementsByText(str, tag = "a") {
