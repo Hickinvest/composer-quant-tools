@@ -1,7 +1,7 @@
 import { getTokenAndAccount, fetchPortfolioHistory, fetchAchTransfers } from "../apiService.js";
 import { log } from "./logger.js";
 
-const ADJUSTMENT_KEY = 'composer-returns-adjustment';
+const YTD_ADJUSTMENT_KEY = 'composer-returns-ytd-adjustment';
 
 // Helper to get all years between two dates (inclusive)
 function getYearsBetween(startDate, endDate) {
@@ -31,65 +31,106 @@ function sumNetDeposits(transfers, upToDate = null, fromDate = null) {
     }, 0);
 }
 
-function getStoredAdjustment() {
-  const val = localStorage.getItem(ADJUSTMENT_KEY);
+function getStoredYtdAdjustment() {
+  const val = localStorage.getItem(YTD_ADJUSTMENT_KEY);
   return val !== null ? parseFloat(val) || 0 : 0;
 }
 
-function setStoredAdjustment(val) {
-  localStorage.setItem(ADJUSTMENT_KEY, String(val));
+function setStoredYtdAdjustment(val) {
+  localStorage.setItem(YTD_ADJUSTMENT_KEY, String(val));
 }
 
-function createReturnsTooltip(stats, anchorRect) {
+function createYtdReturnsTooltip(stats, anchorRect, ytdReturnElement) {
   // Remove any existing tooltip
   const existing = document.getElementById('composer-returns-tooltip');
   if (existing) existing.remove();
 
-  const adjustment = getStoredAdjustment();
+  const ytdAdjustment = getStoredYtdAdjustment();
 
   const tooltip = document.createElement('div');
   tooltip.id = 'composer-returns-tooltip';
   tooltip.style.position = 'fixed';
+  tooltip.style.maxWidth = '270px';
   tooltip.style.background = 'rgba(30,32,40,0.98)';
   tooltip.style.color = '#fff';
   tooltip.style.padding = '14px 18px';
   tooltip.style.borderRadius = '8px';
   tooltip.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
   tooltip.style.zIndex = 9999;
-  tooltip.style.fontSize = '15px';
+  tooltip.style.fontSize = '14px';
   tooltip.style.transition = 'opacity 0.15s';
   tooltip.style.opacity = '0';
 
-  // Add input for adjustment
+  // Inject grid style for stats if not already present
+  if (!document.getElementById('composer-returns-tooltip-grid-style')) {
+    const style = document.createElement('style');
+    style.id = 'composer-returns-tooltip-grid-style';
+    style.textContent = `
+      #composer-returns-popup-values {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0 5px;
+        margin-bottom: 0.5em;
+        align-items: center;
+      }
+      #composer-returns-popup-values .composer-label {
+        text-align: right;
+        opacity: 0.85;
+        padding-right: 2px;
+      }
+      #composer-returns-popup-values .composer-value {
+        text-align: left;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+      }
+      #composer-returns-popup-values .composer-value input {
+        width: 90px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #888;
+        font-weight: normal;
+        transform: translateX(-5px);
+        height: 28px;
+        box-sizing: border-box;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   tooltip.innerHTML = `
-    <div style="font-weight:bold; margin-bottom:8px;">Portfolio Stats</div>
-    <div style="margin-bottom:8px;">
-      <label style="font-size:13px;">Adjust Net Deposits: </label>
-      <input id="composer-returns-adjust-input" type="number" step="any" value="${adjustment}" style="width:90px; font-size:15px; padding:2px 6px; border-radius:4px; border:1px solid #888; margin-left:4px; color:#222;" />
+    <div style="font-weight:bold; font-size: 16px;">YTD Portfolio Stats</div>
+    <div style="padding-bottom:8px; margin-bottom:8px; font-size: 11px; opacity:0.6;">
+      as of ${stats.ytdStartDate.toISOString().slice(0,10)}
     </div>
     <div id="composer-returns-popup-values">
-      <div>Total Return: <b id="composer-total-return">${((stats.finalValue - (stats.netDeposits + adjustment)) / ((stats.netDeposits + adjustment) || 1) * 100).toFixed(2)}%</b></div>
-      <div>Net Deposits: <b id="composer-net-deposits">$${(stats.netDeposits + adjustment).toFixed(2)}</b></div>
-      <div>YTD Net Deposits: <b>$${stats.netYtdDeposits.toFixed(2)}</b></div>
-      <div>Start Value: <b>$${stats.startValue.toFixed(2)}</b></div>
-      <div>End Value: <b>$${stats.finalValue.toFixed(2)}</b></div>
-      <div>YTD Start Value: <b>$${stats.ytdStartValue.toFixed(2)} (${stats.ytdStartDate.toISOString().slice(0,10)})</b></div>
+      <div class="composer-label">Return:</div><div class="composer-value" id="composer-ytd-return">${(stats.ytdReturn * 100).toFixed(2)}%</div>
+      <div class="composer-label">Net Deposits:</div><div class="composer-value" id="composer-ytd-net-deposits">$${(stats.netYtdDeposits + ytdAdjustment).toFixed(2)}</div>
+      <div class="composer-label">Start Value:</div><div class="composer-value">$${stats.ytdStartValue.toFixed(2)}</div>
+      <div class="composer-label">End Value:</div><div class="composer-value">$${stats.finalValue.toFixed(2)}</div>
+      <div class="composer-label">&nbsp;</div><div class="composer-value"></div>
+      <div class="composer-label">Net Adjustments:</div><div class="composer-value" id="composer-ytd-return"><input id="composer-returns-ytd-adjust-input" type="number" step="any" value="${ytdAdjustment}" style="width:90px; font-size:15px; padding:2px 6px; border-radius:4px; border:1px solid #888; margin-left:4px; color:#222;" /></div>
+    </div>
+    <div style="margin-top:14px; font-size:11px; color:#b0b8c9; line-height:1.5; opacity:0.6;">
+      <b>Net deposits</b> includes ACH deposits and withdrawals, but it does not account for wire transfers or IRA rollovers.<br><br>
+      <b>Wire transfers and IRA rollovers</b> can be added together and used as the <b>"Net Adjustments"</b> value.
     </div>
   `;
   document.body.appendChild(tooltip);
 
-  // Add live update logic for adjustment
   setTimeout(() => {
-    const input = document.getElementById('composer-returns-adjust-input');
-    if (!input) return;
-    input.addEventListener('input', () => {
-      const adj = parseFloat(input.value) || 0;
-      setStoredAdjustment(adj);
-      const newNetDeposits = stats.netDeposits + adj;
-      const newTotalReturn = (stats.finalValue - newNetDeposits) / (newNetDeposits || 1);
-      document.getElementById('composer-net-deposits').textContent = `$${newNetDeposits.toFixed(2)}`;
-      document.getElementById('composer-total-return').textContent = `${(newTotalReturn * 100).toFixed(2)}%`;
-    });
+    const ytdAdjInput = document.getElementById('composer-returns-ytd-adjust-input');
+    if (ytdAdjInput && ytdReturnElement) {
+      ytdAdjInput.addEventListener('input', () => {
+        const ytdAdj = parseFloat(ytdAdjInput.value) || 0;
+        setStoredYtdAdjustment(ytdAdj);
+        const newNetYtdDeposits = stats.netYtdDeposits + ytdAdj;
+        const newYtdReturn = (stats.finalValue - stats.ytdStartValue - newNetYtdDeposits) / ((stats.ytdStartValue + newNetYtdDeposits) || 1);
+        document.getElementById('composer-ytd-net-deposits').textContent = `$${newNetYtdDeposits.toFixed(2)}`;
+        ytdReturnElement.textContent = `${(newYtdReturn * 100).toFixed(2)}%`;
+        document.getElementById('composer-ytd-return').textContent = `${(newYtdReturn * 100).toFixed(2)}%`;
+      });
+    }
   }, 0);
 
   // Position tooltip near the anchor
@@ -122,7 +163,6 @@ function injectYtdReturnWithTooltip({
   ytdReturn,
   ...stats
 }) {
-  // If ytdReturn is not provided, don't inject anything
   if (ytdReturn === undefined) return;
 
   const banner = document.querySelector('.metric-banner');
@@ -152,8 +192,7 @@ function injectYtdReturnWithTooltip({
 
   function openTooltip() {
     if (tooltip) tooltip.remove();
-    tooltip = createReturnsTooltip({ ytdReturn, ...stats }, wrapper.getBoundingClientRect());
-    // Keep open if mouse enters tooltip
+    tooltip = createYtdReturnsTooltip({ ytdReturn, ...stats }, wrapper.getBoundingClientRect(), valueDiv);
     tooltip.addEventListener('mouseenter', () => {
       isOverYtd = false;
       clearTimeout(closeTimeout);
@@ -230,19 +269,6 @@ export async function logPortfolioReturns() {
     allTransfers.push(...(Array.isArray(transfers) ? transfers : []));
   }
 
-  // --- Total Return ---
-  const startValue = history.series[0];
-  const finalValue = history.series[history.series.length - 1];
-  const netDeposits = sumNetDeposits(allTransfers, lastDate);
-  const totalReturn = (finalValue - netDeposits) / (netDeposits || 1);
-
-  log("--- Portfolio Returns Breakdown ---");
-  log("[Total Period]");
-  log(`  Start Value: $${startValue.toFixed(2)}`);
-  log(`  End Value:   $${finalValue.toFixed(2)}`);
-  log(`  Net Deposits (all time): $${netDeposits.toFixed(2)}`);
-  log(`  Total Return: ${(totalReturn * 100).toFixed(2)}%`);
-
   let ytdStats = null;
   if (enableYtdReturns) {
     // --- YTD Return ---
@@ -254,7 +280,10 @@ export async function logPortfolioReturns() {
     const ytdStartValue = history.series[ytdStartIdx];
     const ytdStartDate = new Date(history.epoch_ms[ytdStartIdx]);
     const netYtdDeposits = sumNetDeposits(allTransfers, lastDate, ytdStartDate);
-    const ytdReturn = (finalValue - ytdStartValue - netYtdDeposits) / ((ytdStartValue + netYtdDeposits) || 1);
+    const ytdAdjustment = getStoredYtdAdjustment();
+    const adjustedNetYtdDeposits = netYtdDeposits + ytdAdjustment;
+    const finalValue = history.series[history.series.length - 1];
+    const ytdReturn = (finalValue - ytdStartValue - adjustedNetYtdDeposits) / ((ytdStartValue + adjustedNetYtdDeposits) || 1);
 
     log("");
     log("[Year-to-Date]");
@@ -267,17 +296,14 @@ export async function logPortfolioReturns() {
       ytdStartValue,
       ytdStartDate,
       netYtdDeposits,
-      ytdReturn
+      ytdReturn,
+      finalValue
     };
   }
   log("------------------------------------");
 
   // Wait for metric banner and inject into UI
-  await waitForMetricBannerAndInject({
-    startValue,
-    finalValue,
-    netDeposits,
-    totalReturn,
-    ...(ytdStats || {})
-  });
+  if (ytdStats) {
+    await waitForMetricBannerAndInject(ytdStats);
+  }
 } 
