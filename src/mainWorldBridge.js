@@ -1,6 +1,6 @@
 // Bridge script that runs in the MAIN world to access React internals
 window.addEventListener('message', async function(event) {
-    // Only handle messages requesting React props
+    // Handle messages requesting React props
     if (event.data.type === 'GET_REACT_PROPS') {
         const element = event.data.element;
         const propSelector = event.data.propSelector; // e.g. "children.props"

@@ -118,6 +118,7 @@ const jsLib = [
   "https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/css/selectize.default.min.css",
   "https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/js/selectize.min.js",
   "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js",
+  "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",
 ]
 
 

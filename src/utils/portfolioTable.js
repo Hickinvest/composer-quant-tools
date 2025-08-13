@@ -128,6 +128,17 @@ export async function getSymphonyPerformanceInfo(options = {}) {
           const symphonyIndex = performanceData.symphonyStats.symphonies.findIndex(s => s.id === symphony.id);
           if (symphonyIndex !== -1) {
             performanceData.symphonyStats.symphonies[symphonyIndex] = symphony;
+            
+            // Send updated data to MAIN world (throttled to avoid too many messages)
+            // this is used by assetAllocationCharts.js
+            clearTimeout(window.performanceDataUpdateTimeout);
+            window.performanceDataUpdateTimeout = setTimeout(() => {
+              window.postMessage({
+                type: 'COMPOSER_QUANT_TOOLS_CHART_DATA',
+                source: 'composer-quant-tools-isolated',
+                data: performanceData
+              }, '*');
+            }, 100);
           }
           
           // Call the callback if provided
@@ -145,6 +156,13 @@ export async function getSymphonyPerformanceInfo(options = {}) {
     
     // Update the timestamp to indicate successful data fetch
     performanceDataFetchedAt = Date.now();
+
+    // Send performance data to MAIN world for chart rendering
+    window.postMessage({
+      type: 'COMPOSER_QUANT_TOOLS_CHART_DATA',
+      source: 'composer-quant-tools-isolated',
+      data: performanceData
+    }, '*');
 
     return performanceData;
   } catch (error) {

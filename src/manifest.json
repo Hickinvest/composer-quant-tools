@@ -36,9 +36,12 @@
       "js": [
         "fetchAuth.js",
         "lib/jslib/lodash.min.js",
+        "lib/jslib/chart.umd.min.js",
         "utils/storageAccess.js",
         "utils/liveTickerTooltip.js",
         "utils/logarithmicCharts.js",
+        "utils/assetAllocationCharts.js",
+        "utils/pieCharts.js",
         "mainWorldBridge.js"
       ],
       "world": "MAIN",
