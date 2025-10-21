@@ -158,7 +158,7 @@ export function updateTableRows() {
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
     if (symphony.addedStats) {
       for (let row of rows) {
-        const nameTd = row.querySelector("td:first-child .truncate[href]");
+        const nameTd = row.querySelector("td:first-child [href]"); //td:first-child .truncate[href] is correct but they seem to be missing the truncate sometimes now.
         const nameText = nameTd?.textContent?.trim?.();
         if (nameText == symphony.name) {
           updateRowStats(row, symphony.addedStats);
