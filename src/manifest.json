@@ -13,7 +13,7 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "http://localhost:*/*"
+    "http://localhost:3015/*"
   ],
   "icons": {
     "16": "images/icon16.png",
