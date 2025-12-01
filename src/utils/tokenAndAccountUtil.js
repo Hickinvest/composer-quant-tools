@@ -46,19 +46,32 @@ function getAccount(token) {
 
         let account;
 
-        while (!account) {
-          account = data.accounts.find(
-            (account) =>
-              account.account_uuid === localStorage.getItem("selectedAccount"),
-          );
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        // Try to find account from localStorage (with timeout to prevent infinite loop)
+        let attempts = 0;
+        const maxAttempts = 10; // 2 seconds max
+
+        while (!account && attempts < maxAttempts) {
+          const selectedAccount = localStorage.getItem("selectedAccount");
+          if (selectedAccount) {
+            account = data.accounts.find(
+              (acct) => acct.account_uuid === selectedAccount,
+            );
+          }
+          if (!account) {
+            attempts++;
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
         }
 
         if (account) {
+          log("Found account from localStorage:", account.account_uuid);
           resolve(account);
         } else {
-          // Fallback to detecting account type we should remove this at somepoint
-          // there is always a chance the localStorage variable will not be used
+          // Fallback: try to detect from UI buttons
+          const getElementsByText = (text, selector) => {
+            return Array.from(document.querySelectorAll(selector)).filter(el => el.textContent.includes(text));
+          };
+
           const isStocks = getElementsByText("Stocks", "button").length > 0;
           const isRoth = getElementsByText("Roth", "button").length > 0;
           const isTraditional = getElementsByText("Traditional", "button").length > 0;
@@ -75,18 +88,27 @@ function getAccount(token) {
             account = data.accounts.filter((acct) =>
               acct.account_type.toLowerCase().includes("traditional"),
             )[0];
-          } else {
-            throw new Error(
-              "[composer-quant-tools]: Unable to detect account type",
-            );
           }
-          resolve(account);
+
+          // Final fallback: just use the first account
+          if (!account && data.accounts && data.accounts.length > 0) {
+            account = data.accounts[0];
+            log("Using first account as fallback:", account.account_uuid);
+          }
+
+          if (account) {
+            resolve(account);
+          } else {
+            console.error("[composer-quant-tools]: No accounts found");
+            resolve(null);
+          }
         }
       } catch (error) {
         console.error(
-          "[composer-quant-tools]: Unable to detect account type with:",
-          data
+          "[composer-quant-tools]: Unable to detect account type:",
+          error
         );
+        resolve(null);
       }
     });
   }
@@ -115,19 +137,33 @@ function getTokenAndAccountUtil() {
     // get the latest account type every time and invalidate the cache if it has changed
     const currentAccountId = accountInfo['account-id'];
 
-    if (
-      token &&
-      currentAccountId !== accountId || 
-      (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000)
-    ) {
-      accountId = currentAccountId;
+    // Check if we have a valid cached token and account (within 20 minutes)
+    const cacheValid = lastAuthRequest && (Date.now() - lastAuthRequest < 20 * 60 * 1000);
+
+    if (token && accountId && cacheValid && currentAccountId === accountId) {
       return {
         token,
         account: {account_uuid: accountId},
       };
     } else {
       token = await pollForToken();
-      account = accountId ? {account_uuid: accountId} : await getAccount(token);
+
+      // Try to use currentAccountId from localStorage, otherwise fetch account
+      if (currentAccountId) {
+        accountId = currentAccountId;
+        account = {account_uuid: accountId};
+        log("Using account from localStorage:", accountId);
+      } else {
+        // Reset the promise so we can try again
+        accountPromise = null;
+        account = await getAccount(token);
+        accountId = account?.account_uuid;
+      }
+
+      if (!accountId) {
+        console.error("[composer-quant-tools]: Could not determine account ID");
+      }
+
       lastAuthRequest = Date.now();
       return {
         token,

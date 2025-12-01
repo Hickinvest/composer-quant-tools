@@ -199,6 +199,11 @@
         return; // Don't process if tooltips are disabled
     }
 
+    // Guard against non-finite coordinates
+    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
+        return;
+    }
+
     const elementFromPoint = document.elementFromPoint(event.clientX, event.clientY);
     const tickers = getTickersFromElement(elementFromPoint);
     if (tickers?.length) {
