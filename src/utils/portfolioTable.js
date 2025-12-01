@@ -2,6 +2,13 @@
 import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
 import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
 import { log } from "./logger.js";
+import {
+  setupNativeColumnListener,
+  setupTableObserver,
+  handleColumnSort,
+  addSortIndicatorToHeader,
+  isSortingEnabled,
+} from "./tableSortUtil.js";
 
 let extraColumns = [
   "Running Days",
@@ -62,6 +69,8 @@ export const startPortfolioTableInterval = async () => {
 
 export const startSymphonyPerformanceSync = async (mainTable) => {
   updateColumns(mainTable, extraColumns);
+  setupNativeColumnListener(updateTableRows);
+  setupTableObserver(); // Watch for Composer updates to re-apply our sort
   const data = await getSymphonyPerformanceInfo({
     onSymphonyCallback: extendSymphonyStatsRow,
     skipCache: true,
@@ -105,11 +114,11 @@ export async function getSymphonyPerformanceInfo(options = {}) {
     // Process symphonies in batches
     const batchSize = 5; // Process 5 symphonies at a time
     const symphonies = [...symphonyStats.symphonies];
-    
+
     // Process symphonies in batches
     for (let i = 0; i < symphonies.length; i += batchSize) {
       const batch = symphonies.slice(i, i + batchSize);
-      
+
       // Process each batch in parallel
       await Promise.all(batch.map(async (symphony) => {
         try {
@@ -123,13 +132,13 @@ export async function getSymphonyPerformanceInfo(options = {}) {
           // addGeneratedSymphonyStatsToSymphony(symphony, []);
           addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, symphonyActivityHistory);
           await addQuantstatsToSymphony(symphony, []);
-          
+
           // Update the symphony in the performanceData
           const symphonyIndex = performanceData.symphonyStats.symphonies.findIndex(s => s.id === symphony.id);
           if (symphonyIndex !== -1) {
             performanceData.symphonyStats.symphonies[symphonyIndex] = symphony;
           }
-          
+
           // Call the callback if provided
           onSymphonyCallback?.(symphony);
         } catch (error) {
@@ -152,15 +161,38 @@ export async function getSymphonyPerformanceInfo(options = {}) {
   }
 }
 
+// Helper to extract symphony ID from a row (handles various row states)
+function getSymphonyIdFromRow(row) {
+  // Primary: Try to get ID from the symphony link in first cell
+  const primaryLink = row.querySelector("td:first-child a[href*='/symphony/']");
+  if (primaryLink) {
+    const match = primaryLink.href.match(/\/symphony\/([^\/]+)/);
+    if (match) return match[1];
+  }
+
+  // Fallback: Look for any symphony link in the row (handles pending trades, liquidations, etc.)
+  const anyLink = row.querySelector("a[href*='/symphony/']");
+  if (anyLink) {
+    const match = anyLink.href.match(/\/symphony\/([^\/]+)/);
+    if (match) return match[1];
+  }
+
+  // Final fallback: Check for data attributes that might store the ID
+  const dataId = row.dataset?.symphonyId || row.querySelector("[data-symphony-id]")?.dataset?.symphonyId;
+  if (dataId) return dataId;
+
+  return null;
+}
+
 export function updateTableRows() {
   const mainTableBody = document.querySelector("main :not(.tv-lightweight-charts) > table tbody");
   const rows = mainTableBody?.querySelectorAll("tr");
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
     if (symphony.addedStats) {
       for (let row of rows) {
-        const nameTd = row.querySelector("td:first-child [href]"); //td:first-child .truncate[href] is correct but they seem to be missing the truncate sometimes now.
-        const nameText = nameTd?.textContent?.trim?.();
-        if (nameText == symphony.name) {
+        // Use robust ID extraction that handles various row states
+        const symphonyId = getSymphonyIdFromRow(row);
+        if (symphonyId == symphony.id) {
           updateRowStats(row, symphony.addedStats);
           break;
         }
@@ -173,8 +205,8 @@ export function extendSymphonyStatsRow(symphony) {
   const mainTableBody = document.querySelector("main :not(.tv-lightweight-charts) > table tbody");
   const rows = mainTableBody?.querySelectorAll("tr");
   for (let row of rows) {
-    const nameTd = row.querySelector("td:first-child a");
-    const symphonyId = nameTd?.href?.split?.('/')?.[4];
+    // Use robust ID extraction that handles various row states
+    const symphonyId = getSymphonyIdFromRow(row);
     if (symphonyId == symphony.id && symphony.addedStats) {
       updateRowStats(row, symphony.addedStats);
       break;
@@ -208,10 +240,29 @@ export function updateColumns(mainTable, extraColumns) {
       th = document.createElement("th");
       th.className = "group relative flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[160px] extra-column";
       th.dataset.key = columnName;
+
+      // Only add cursor/click handler if sorting is enabled
+      if (isSortingEnabled()) {
+        th.style.cursor = 'pointer';
+        th.style.userSelect = 'none';
+
+        // Add click handler for sorting
+        th.addEventListener('click', () => {
+          handleColumnSort(th.dataset.key);
+        });
+      }
+
       const theadRowWrapper = theadFirstRow.querySelector("th:last-child").parentElement;
       theadRowWrapper.append(th);
     }
+
+    // Set column text
     th.textContent = columnName;
+
+    // Add sort indicator arrow (only if sorting is enabled)
+    if (isSortingEnabled()) {
+      addSortIndicatorToHeader(th, columnName);
+    }
   });
 }
 
