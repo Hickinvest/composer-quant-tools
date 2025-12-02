@@ -80,6 +80,7 @@ const defaultSettings = {
   enableTooltips: true,
   enableCmdClick: true,
   enableYtdReturns: true,
+  enableKeepAlive: true,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -236,6 +237,15 @@ async function initEnableYtdReturns() {
   });
 }
 
+async function initEnableKeepAlive() {
+  const enableKeepAliveCheckbox = document.getElementById('enableKeepAlive');
+  enableKeepAliveCheckbox.checked = currentSettings.enableKeepAlive ?? true;
+  
+  enableKeepAliveCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableKeepAlive: e.target.checked });
+  });
+}
+
 function positionTooltips() {
   const tooltips = document.querySelectorAll('.tooltip-container');
   tooltips.forEach(tooltip => {
@@ -276,6 +286,7 @@ async function initializePopup() {
   await initEnableTooltips();
   await initEnableCmdClick();
   await initEnableYtdReturns();
+  await initEnableKeepAlive();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }
