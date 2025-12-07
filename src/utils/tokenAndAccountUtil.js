@@ -99,15 +99,12 @@ function getAccount(token) {
           if (account) {
             resolve(account);
           } else {
-            console.error("[composer-quant-tools]: No accounts found");
+            log("No accounts found");
             resolve(null);
           }
         }
       } catch (error) {
-        console.error(
-          "[composer-quant-tools]: Unable to detect account type:",
-          error
-        );
+        log("Unable to detect account type:", error);
         resolve(null);
       }
     });
@@ -161,7 +158,7 @@ function getTokenAndAccountUtil() {
       }
 
       if (!accountId) {
-        console.error("[composer-quant-tools]: Could not determine account ID");
+        log("Could not determine account ID");
       }
 
       lastAuthRequest = Date.now();

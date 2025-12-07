@@ -2,6 +2,15 @@
 import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
 import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
 import { log } from "./logger.js";
+import {
+  setupNativeColumnListener,
+  handleColumnSort,
+  addSortIndicatorToHeader,
+  getCurrentSortColumn,
+  getCurrentSortDirection,
+  isSortingEnabled,
+  setSortingEnabled
+} from "./tableSortUtil.js";
 
 let extraColumns = [
   "Running Days",
@@ -16,199 +25,12 @@ let extraColumns = [
   "Worst Day",
 ];
 
-// Track current sort state
-let currentSortColumn = null;
-let currentSortDirection = 'desc'; // 'asc' or 'desc'
-let nativeColumnListenerAdded = false;
-let originalRowOrder = []; // Store original row order to restore when switching to native sort
-
 export function setExtraColumns(columns) {
   extraColumns = columns;
 }
 
-// Store the current row order (call this before any sorting)
-export function captureOriginalRowOrder() {
-  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
-  if (!mainTable) return;
-
-  const tbody = mainTable.querySelector("tbody");
-  if (!tbody) return;
-
-  // Only capture if we haven't already or if order is empty
-  if (originalRowOrder.length === 0) {
-    originalRowOrder = Array.from(tbody.querySelectorAll("tr")).map(row => {
-      const link = row.querySelector("td:first-child a");
-      return link?.href?.split?.('/')?.[4] || null; // symphony ID
-    }).filter(Boolean);
-    log('Captured original row order:', originalRowOrder.length, 'rows');
-  }
-}
-
-// Restore rows to original order (before native sort)
-export function restoreOriginalRowOrder() {
-  if (originalRowOrder.length === 0) return;
-
-  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
-  if (!mainTable) return;
-
-  const tbody = mainTable.querySelector("tbody");
-  if (!tbody) return;
-
-  const rows = Array.from(tbody.querySelectorAll("tr"));
-
-  // Sort rows back to original order
-  rows.sort((a, b) => {
-    const linkA = a.querySelector("td:first-child a");
-    const linkB = b.querySelector("td:first-child a");
-    const idA = linkA?.href?.split?.('/')?.[4];
-    const idB = linkB?.href?.split?.('/')?.[4];
-
-    const indexA = originalRowOrder.indexOf(idA);
-    const indexB = originalRowOrder.indexOf(idB);
-
-    return indexA - indexB;
-  });
-
-  // Reorder in DOM
-  rows.forEach(row => tbody.appendChild(row));
-  log('Restored original row order');
-}
-
-// Reset our sort state and refresh data when native columns are sorted
-export function setupNativeColumnListener() {
-  if (nativeColumnListenerAdded) return;
-
-  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
-  if (!mainTable) return;
-
-  const thead = mainTable.querySelector("thead");
-  if (!thead) return;
-
-  // Capture initial row order
-  captureOriginalRowOrder();
-
-  thead.addEventListener('click', (e) => {
-    const clickedTh = e.target.closest('th');
-    // If clicked on a native column (not our extra columns)
-    if (clickedTh && !clickedTh.classList.contains('extra-column')) {
-      log('Native column clicked, resetting sort state and refreshing data');
-
-      // Restore original row order so Composer can sort correctly
-      restoreOriginalRowOrder();
-
-      // Reset our sort state
-      currentSortColumn = null;
-      currentSortDirection = 'desc';
-
-      // Update arrow indicators to show inactive state
-      updateAllColumnArrows();
-
-      // Wait a moment for Composer to finish sorting, then refresh our data
-      setTimeout(() => {
-        // Capture the new order after Composer sorts
-        originalRowOrder = [];
-        captureOriginalRowOrder();
-        updateTableRows();
-      }, 150);
-    }
-  });
-
-  nativeColumnListenerAdded = true;
-  log('Native column listener added');
-}
-
-// Sort table by a specific column
-export function sortTableByColumn(columnKey, direction = 'desc') {
-  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
-  if (!mainTable) return;
-
-  const tbody = mainTable.querySelector("tbody");
-  if (!tbody) return;
-
-  const rows = Array.from(tbody.querySelectorAll("tr"));
-
-  rows.sort((a, b) => {
-    const cellA = a.querySelector(`.extra-column[data-key="${columnKey}"]`);
-    const cellB = b.querySelector(`.extra-column[data-key="${columnKey}"]`);
-
-    let valueA = cellA?.textContent?.trim() || '';
-    let valueB = cellB?.textContent?.trim() || '';
-
-    // Parse percentage values (remove % sign)
-    if (valueA.endsWith('%')) valueA = valueA.slice(0, -1);
-    if (valueB.endsWith('%')) valueB = valueB.slice(0, -1);
-
-    // Convert to numbers for numeric comparison
-    const numA = parseFloat(valueA) || 0;
-    const numB = parseFloat(valueB) || 0;
-
-    if (direction === 'asc') {
-      return numA - numB;
-    } else {
-      return numB - numA;
-    }
-  });
-
-  // Reorder rows in the DOM
-  rows.forEach(row => tbody.appendChild(row));
-
-  // Update sort indicators
-  updateSortIndicators(columnKey, direction);
-
-  log(`Sorted by ${columnKey} (${direction})`);
-}
-
-// Update visual sort indicators on headers
-function updateSortIndicators(activeColumn, direction) {
-  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
-  if (!mainTable) return;
-
-  // Update all extra column arrows
-  mainTable.querySelectorAll('thead .extra-column').forEach(th => {
-    const columnKey = th.dataset.key;
-    let indicator = th.querySelector('.sort-indicator');
-
-    if (!indicator) {
-      indicator = document.createElement('span');
-      indicator.className = 'sort-indicator';
-      indicator.style.marginLeft = '4px';
-      indicator.style.fontSize = '10px';
-      th.appendChild(indicator);
-    }
-
-    if (columnKey === activeColumn) {
-      // Active column - solid arrow
-      indicator.textContent = direction === 'asc' ? '▲' : '▼';
-      indicator.style.opacity = '1';
-    } else {
-      // Inactive column - faded arrow
-      indicator.textContent = '▼';
-      indicator.style.opacity = '0.3';
-    }
-  });
-}
-
-// Show all arrows as faded (no active sort)
-function updateAllColumnArrows() {
-  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
-  if (!mainTable) return;
-
-  mainTable.querySelectorAll('thead .extra-column').forEach(th => {
-    let indicator = th.querySelector('.sort-indicator');
-
-    if (!indicator) {
-      indicator = document.createElement('span');
-      indicator.className = 'sort-indicator';
-      indicator.style.marginLeft = '4px';
-      indicator.style.fontSize = '10px';
-      th.appendChild(indicator);
-    }
-
-    // All faded
-    indicator.textContent = '▼';
-    indicator.style.opacity = '0.3';
-  });
-}
+// Re-export sorting control for external use
+export { setSortingEnabled, isSortingEnabled };
 
 export const startPortfolioTableInterval = async () => {
   const checkInterval = setInterval(async () => {
@@ -252,7 +74,7 @@ export const startPortfolioTableInterval = async () => {
 
 export const startSymphonyPerformanceSync = async (mainTable) => {
   updateColumns(mainTable, extraColumns);
-  setupNativeColumnListener();
+  setupNativeColumnListener(updateTableRows);
   const data = await getSymphonyPerformanceInfo({
     onSymphonyCallback: extendSymphonyStatsRow,
     skipCache: true,
@@ -343,15 +165,37 @@ export async function getSymphonyPerformanceInfo(options = {}) {
   }
 }
 
+// Helper to extract symphony ID from a row (handles various row states)
+function getSymphonyIdFromRow(row) {
+  // Primary: Try to get ID from the symphony link in first cell
+  const primaryLink = row.querySelector("td:first-child a[href*='/symphony/']");
+  if (primaryLink) {
+    const match = primaryLink.href.match(/\/symphony\/([^\/]+)/);
+    if (match) return match[1];
+  }
+
+  // Fallback: Look for any symphony link in the row (handles pending trades, liquidations, etc.)
+  const anyLink = row.querySelector("a[href*='/symphony/']");
+  if (anyLink) {
+    const match = anyLink.href.match(/\/symphony\/([^\/]+)/);
+    if (match) return match[1];
+  }
+
+  // Final fallback: Check for data attributes that might store the ID
+  const dataId = row.dataset?.symphonyId || row.querySelector("[data-symphony-id]")?.dataset?.symphonyId;
+  if (dataId) return dataId;
+
+  return null;
+}
+
 export function updateTableRows() {
   const mainTableBody = document.querySelector("main :not(.tv-lightweight-charts) > table tbody");
   const rows = mainTableBody?.querySelectorAll("tr");
   performanceData?.symphonyStats?.symphonies?.forEach?.((symphony) => {
     if (symphony.addedStats) {
       for (let row of rows) {
-        // Use ID-based matching instead of name matching (handles special characters better)
-        const nameTd = row.querySelector("td:first-child a");
-        const symphonyId = nameTd?.href?.split?.('/')?.[4];
+        // Use robust ID extraction that handles various row states
+        const symphonyId = getSymphonyIdFromRow(row);
         if (symphonyId == symphony.id) {
           updateRowStats(row, symphony.addedStats);
           break;
@@ -365,8 +209,8 @@ export function extendSymphonyStatsRow(symphony) {
   const mainTableBody = document.querySelector("main :not(.tv-lightweight-charts) > table tbody");
   const rows = mainTableBody?.querySelectorAll("tr");
   for (let row of rows) {
-    const nameTd = row.querySelector("td:first-child a");
-    const symphonyId = nameTd?.href?.split?.('/')?.[4];
+    // Use robust ID extraction that handles various row states
+    const symphonyId = getSymphonyIdFromRow(row);
     if (symphonyId == symphony.id && symphony.addedStats) {
       updateRowStats(row, symphony.addedStats);
       break;
@@ -400,44 +244,29 @@ export function updateColumns(mainTable, extraColumns) {
       th = document.createElement("th");
       th.className = "group relative flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[160px] extra-column";
       th.dataset.key = columnName;
-      th.style.cursor = 'pointer';
-      th.style.userSelect = 'none';
+
+      // Only add cursor/click handler if sorting is enabled
+      if (isSortingEnabled()) {
+        th.style.cursor = 'pointer';
+        th.style.userSelect = 'none';
+
+        // Add click handler for sorting
+        th.addEventListener('click', () => {
+          handleColumnSort(th.dataset.key);
+        });
+      }
+
       const theadRowWrapper = theadFirstRow.querySelector("th:last-child").parentElement;
       theadRowWrapper.append(th);
-
-      // Add click handler for sorting
-      th.addEventListener('click', () => {
-        const clickedColumn = th.dataset.key;
-        // Toggle direction if clicking same column, otherwise default to desc
-        if (currentSortColumn === clickedColumn) {
-          currentSortDirection = currentSortDirection === 'desc' ? 'asc' : 'desc';
-        } else {
-          currentSortDirection = 'desc';
-        }
-        currentSortColumn = clickedColumn;
-        sortTableByColumn(clickedColumn, currentSortDirection);
-      });
     }
 
     // Set column text
     th.textContent = columnName;
 
-    // Add sort indicator arrow
-    const indicator = document.createElement('span');
-    indicator.className = 'sort-indicator';
-    indicator.style.marginLeft = '4px';
-    indicator.style.fontSize = '10px';
-
-    if (currentSortColumn === columnName) {
-      // Active column - solid arrow
-      indicator.textContent = currentSortDirection === 'asc' ? '▲' : '▼';
-      indicator.style.opacity = '1';
-    } else {
-      // Inactive column - faded arrow
-      indicator.textContent = '▼';
-      indicator.style.opacity = '0.3';
+    // Add sort indicator arrow (only if sorting is enabled)
+    if (isSortingEnabled()) {
+      addSortIndicatorToHeader(th, columnName);
     }
-    th.appendChild(indicator);
   });
 }
 

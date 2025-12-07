@@ -199,7 +199,8 @@
         return; // Don't process if tooltips are disabled
     }
 
-    // Guard against non-finite coordinates
+    // Defensive guard against non-finite coordinates (rare edge case with synthetic events)
+    // This may not be strictly necessary but prevents potential errors with elementFromPoint
     if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
         return;
     }

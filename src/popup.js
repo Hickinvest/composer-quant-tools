@@ -81,6 +81,7 @@ const defaultSettings = {
   enableCmdClick: true,
   enableYtdReturns: true,
   enableKeepAlive: true,
+  enableColumnSorting: true,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -240,9 +241,18 @@ async function initEnableYtdReturns() {
 async function initEnableKeepAlive() {
   const enableKeepAliveCheckbox = document.getElementById('enableKeepAlive');
   enableKeepAliveCheckbox.checked = currentSettings.enableKeepAlive ?? true;
-  
+
   enableKeepAliveCheckbox.addEventListener('change', (e) => {
     saveSettings({ enableKeepAlive: e.target.checked });
+  });
+}
+
+async function initEnableColumnSorting() {
+  const enableColumnSortingCheckbox = document.getElementById('enableColumnSorting');
+  enableColumnSortingCheckbox.checked = currentSettings.enableColumnSorting ?? true;
+
+  enableColumnSortingCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableColumnSorting: e.target.checked });
   });
 }
 
@@ -287,6 +297,7 @@ async function initializePopup() {
   await initEnableCmdClick();
   await initEnableYtdReturns();
   await initEnableKeepAlive();
+  await initEnableColumnSorting();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }
