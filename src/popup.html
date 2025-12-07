@@ -357,6 +357,23 @@
             <span class="tooltip-text">When enabled, allows sorting by custom columns on the portfolio page. WARNING: Sorting may cause issues with the expandable "Holdings / History" pane - the pane may appear in the wrong position or move to the bottom when sorting is applied.</span>
           </span>
         </label>
+
+        <label for="enableBenchmarkCalculations" class="checkbox-label">
+          <input type="checkbox" id="enableBenchmarkCalculations" />&nbsp;
+          <span class="label-text">
+            Enable Alpha/Beta vs Benchmarks
+          </span>
+          <span class="tooltip-container">
+            <span class="tooltip-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g id="Warning / Info">
+                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </g>
+              </svg>
+            </span>
+            <span class="tooltip-text">When enabled, calculates CAPM Alpha, Beta, and R² vs SPY and QQQ benchmarks. Uses BIL as risk-free rate proxy. Requires fetching benchmark data from Yahoo Finance.</span>
+          </span>
+        </label>
       </div>
            
     </div>
