@@ -4,6 +4,7 @@ import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGenera
 import { log } from "./logger.js";
 import {
   setupNativeColumnListener,
+  setupTableObserver,
   handleColumnSort,
   addSortIndicatorToHeader,
   getCurrentSortColumn,
@@ -75,6 +76,7 @@ export const startPortfolioTableInterval = async () => {
 export const startSymphonyPerformanceSync = async (mainTable) => {
   updateColumns(mainTable, extraColumns);
   setupNativeColumnListener(updateTableRows);
+  setupTableObserver(); // Watch for Composer updates to re-apply our sort
   const data = await getSymphonyPerformanceInfo({
     onSymphonyCallback: extendSymphonyStatsRow,
     skipCache: true,

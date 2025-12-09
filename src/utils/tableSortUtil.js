@@ -30,6 +30,8 @@ let currentSortDirection = 'desc'; // 'asc' or 'desc'
 let nativeColumnListenerAdded = false;
 let originalRowOrder = []; // Store original row order to restore when switching to native sort
 let sortingEnabled = true; // Can be toggled via settings
+let tableObserver = null; // MutationObserver to watch for Composer updates
+let reapplySortTimeout = null; // Debounce timer for re-applying sort
 
 // Getter/setter for sorting enabled state
 export function setSortingEnabled(enabled) {
@@ -103,6 +105,57 @@ export function restoreOriginalRowOrder() {
 // Clear captured row order (call when table is re-rendered)
 export function clearOriginalRowOrder() {
   originalRowOrder = [];
+}
+
+// Set up observer to watch for Composer table updates and re-apply our sort
+export function setupTableObserver() {
+  if (tableObserver) return; // Already set up
+
+  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
+  if (!mainTable) return;
+
+  const tbody = mainTable.querySelector("tbody");
+  if (!tbody) return;
+
+  tableObserver = new MutationObserver((mutations) => {
+    // Only re-apply if we have an active custom sort
+    if (!currentSortColumn || !sortingEnabled) return;
+
+    // Check if the mutation is a cell text change (not our own reordering)
+    const isTextChange = mutations.some(m =>
+      m.type === 'characterData' ||
+      (m.type === 'childList' && m.target.tagName !== 'TBODY')
+    );
+
+    if (isTextChange) {
+      // Debounce to avoid rapid re-sorting
+      if (reapplySortTimeout) clearTimeout(reapplySortTimeout);
+      reapplySortTimeout = setTimeout(() => {
+        log('Composer updated table, re-applying sort');
+        sortTableByColumn(currentSortColumn, currentSortDirection);
+      }, 100);
+    }
+  });
+
+  tableObserver.observe(tbody, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+
+  log('Table observer set up for sort persistence');
+}
+
+// Clean up observer (call when navigating away)
+export function cleanupTableObserver() {
+  if (tableObserver) {
+    tableObserver.disconnect();
+    tableObserver = null;
+  }
+  if (reapplySortTimeout) {
+    clearTimeout(reapplySortTimeout);
+    reapplySortTimeout = null;
+  }
 }
 
 // Reset our sort state and refresh data when native columns are sorted
