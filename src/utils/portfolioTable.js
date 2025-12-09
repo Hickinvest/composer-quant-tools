@@ -1,6 +1,6 @@
 // Table-specific logic for the portfolio page
 import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
-import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
+import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz, calculatePL, formatPLDollar, formatPLPercent } from "./liveSymphonyPerformance.js";
 import { calculateActiveCagr, injectActiveCagrWithTooltip, injectActiveCagrLoadingPlaceholder } from "./portfolioReturns.js";
 import { getBenchmarks, alignBenchmarkWithSymphony } from "./benchmarkData.js";
 import { log } from "./logger.js";
@@ -292,9 +292,61 @@ export function extendSymphonyStatsRow(symphony) {
   }
 }
 
+// Parse dollar value from Composer's table cell (e.g., "$11,919.85" -> 11919.85)
+function parseDollarValue(text) {
+  if (!text) return null;
+  const cleaned = text.replace(/[$,]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+
+// Get Current Value and Net Deposits from Composer's native columns in this row
+function getPLValuesFromRow(row) {
+  const cells = row.querySelectorAll("td");
+  let currentValue = null;
+  let netDeposits = null;
+
+  // Find the header row to identify column indices
+  const table = row.closest("table");
+  const headers = table?.querySelectorAll("thead th");
+
+  if (headers) {
+    headers.forEach((th, index) => {
+      const headerText = th.textContent?.trim();
+      if (headerText?.includes("Current Value")) {
+        const cell = cells[index];
+        if (cell) {
+          currentValue = parseDollarValue(cell.textContent?.trim());
+        }
+      } else if (headerText?.includes("Net Deposits")) {
+        const cell = cells[index];
+        if (cell) {
+          netDeposits = parseDollarValue(cell.textContent?.trim());
+        }
+      }
+    });
+  }
+
+  return { currentValue, netDeposits };
+}
+
 export function updateRowStats(row, addedStats) {
+  // Calculate P/L from DOM values (Current Value and Net Deposits columns)
+  const { currentValue, netDeposits } = getPLValuesFromRow(row);
+
   extraColumns.forEach((key, index) => {
     let value = addedStats[key];
+
+    // For P/L columns, calculate from DOM values if available
+    if ((key === "P/L $" || key === "P/L %") && currentValue !== null && netDeposits !== null) {
+      const { plDollar, plPercent } = calculatePL(currentValue, netDeposits);
+      if (key === "P/L $") {
+        value = formatPLDollar(plDollar);
+      } else {
+        value = formatPLPercent(plPercent);
+      }
+    }
+
     let cell = row.querySelector(`.extra-column[data-key="${key}"]`);
     if (!cell) {
       cell = document.createElement("td");
