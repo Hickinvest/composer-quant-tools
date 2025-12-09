@@ -303,6 +303,17 @@ export function updateRowStats(row, addedStats) {
       rowWrapper.append(cell);
     }
     cell.textContent = value;
+
+    // Apply green/red coloring for P/L columns
+    if (key === "P/L $" || key === "P/L %") {
+      if (value && value.startsWith("+")) {
+        cell.style.color = "#22c55e"; // green
+      } else if (value && value.startsWith("-")) {
+        cell.style.color = "#ef4444"; // red
+      } else {
+        cell.style.color = ""; // reset
+      }
+    }
   });
 }
 

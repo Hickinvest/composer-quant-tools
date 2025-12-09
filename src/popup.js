@@ -10,8 +10,8 @@ const columnOptions = [
   "Alpha vs SPY",
   "Alpha vs QQQ",
   // Simple P/L columns (from native Composer data)
-  "Actual P/L $",
-  "Actual P/L %",
+  "P/L $",
+  "P/L %",
   "Avg. Daily Return",
   "Avg. Down Month",
   "Avg. Drawdown Days",
