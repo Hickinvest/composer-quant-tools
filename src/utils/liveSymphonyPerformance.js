@@ -128,11 +128,11 @@ export function buildSymphonyPercentages(symphony, symphonyDeploys) {
   addTodaysChanges(symphony);
 }
 
-export async function addQuantstatsToSymphony(symphony, accountDeploys) {
+export async function addQuantstatsToSymphony(symphony, accountDeploys, benchmarkData = null) {
   //create a promise that resolves when the stats are added
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
-      { action: "getQuantStats", symphony, accountDeploys },
+      { action: "getQuantStats", symphony, accountDeploys, benchmarkData },
       (response) => {
         if (response?.error) {
           log(response?.error);
@@ -143,6 +143,44 @@ export async function addQuantstatsToSymphony(symphony, accountDeploys) {
             ...symphony.addedStats,
             ...symphony.quantstats.quantstats_metrics,
           };
+
+          // Add alpha/beta stats if available
+          if (symphony.quantstats.alpha_beta) {
+            const alphaBeta = symphony.quantstats.alpha_beta;
+
+            // Alpha vs SPY (annualized, as percentage)
+            if (alphaBeta.SPY?.alpha != null) {
+              const alphaAnnualizedSpy = alphaBeta.SPY.alpha * 252 * 100; // Daily alpha * 252 days * 100 for percentage
+              symphony.addedStats["Alpha vs SPY"] = alphaAnnualizedSpy.toFixed(2) + "%";
+            }
+
+            // Alpha vs QQQ (annualized, as percentage)
+            if (alphaBeta.QQQ?.alpha != null) {
+              const alphaAnnualizedQqq = alphaBeta.QQQ.alpha * 252 * 100;
+              symphony.addedStats["Alpha vs QQQ"] = alphaAnnualizedQqq.toFixed(2) + "%";
+            }
+
+            // Beta vs SPY
+            if (alphaBeta.SPY?.beta != null) {
+              symphony.addedStats["Beta vs SPY"] = alphaBeta.SPY.beta.toFixed(2);
+            }
+
+            // Beta vs QQQ
+            if (alphaBeta.QQQ?.beta != null) {
+              symphony.addedStats["Beta vs QQQ"] = alphaBeta.QQQ.beta.toFixed(2);
+            }
+
+            // R² vs SPY
+            if (alphaBeta.SPY?.r_squared != null) {
+              symphony.addedStats["R² vs SPY"] = (alphaBeta.SPY.r_squared * 100).toFixed(1) + "%";
+            }
+
+            // R² vs QQQ
+            if (alphaBeta.QQQ?.r_squared != null) {
+              symphony.addedStats["R² vs QQQ"] = (alphaBeta.QQQ.r_squared * 100).toFixed(1) + "%";
+            }
+          }
+
           resolve(symphony);
         }
       },
@@ -341,5 +379,22 @@ export function addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, s
     "Running Days": symphony.dailyChanges.percentageReturns.length,
     "Avg. Daily Return": (average * 100).toFixed(3) + "%",
     "Median Daily Return": (median * 100).toFixed(3) + "%",
+    // P/L columns are calculated from DOM in portfolioTable.js (reads Current Value & Net Deposits columns)
   };
+}
+
+// Helper functions for P/L calculation and formatting
+export function calculatePL(currentValue, netDeposits) {
+  const value = currentValue || 0;
+  const plDollar = value - netDeposits;
+  const plPercent = netDeposits > 0 ? ((value - netDeposits) / netDeposits) * 100 : 0;
+  return { plDollar, plPercent };
+}
+
+export function formatPLDollar(plDollar) {
+  return (plDollar >= 0 ? "+$" : "-$") + Math.abs(plDollar).toFixed(2);
+}
+
+export function formatPLPercent(plPercent) {
+  return (plPercent >= 0 ? "+" : "") + plPercent.toFixed(2) + "%";
 }

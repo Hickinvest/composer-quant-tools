@@ -150,5 +150,22 @@ export async function getSymphonyStatsMeta() {
   }
 }
 
+// Fetch aggregate portfolio stats (includes net_deposits which captures wires/IRA rollovers)
+export async function fetchAggregatePortfolioStats(account, token) {
+  const url = `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/aggregate-stats`;
+  try {
+    const data = await makeApiCallWithCache(
+      url,
+      { headers: { Authorization: `Bearer ${token}` } },
+      { cacheKey: `composerQuantTools-aggregate-stats-${account.account_uuid}`, cacheTimeout: 60 * 60 * 1000 },
+      `Get aggregate portfolio stats for ${account.account_uuid}`
+    );
+    return data;
+  } catch (error) {
+    log("Error fetching aggregate portfolio stats:", error);
+    return null;
+  }
+}
+
 // Export getTokenAndAccount for convenience
 export { getTokenAndAccount }; 

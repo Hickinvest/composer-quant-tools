@@ -6,6 +6,12 @@ const columnOptions = [
   "5Y (ann.)",
   "6M",
   "All-time (ann.)",
+  // Alpha/Beta columns (CAPM metrics)
+  "Alpha vs SPY",
+  "Alpha vs QQQ",
+  // Simple P/L columns (from native Composer data)
+  "P/L $",
+  "P/L %",
   "Avg. Daily Return",
   "Avg. Down Month",
   "Avg. Drawdown Days",
@@ -14,6 +20,8 @@ const columnOptions = [
   "Best Day",
   "Best Month",
   "Best Year",
+  "Beta vs SPY",
+  "Beta vs QQQ",
   "CAGR% (Annual Return)",
   "Calmar",
   "Daily Value-at-Risk",
@@ -30,6 +38,8 @@ const columnOptions = [
   "MTD",
   "Omega",
   "Prob. Sharpe Ratio",
+  "R² vs SPY",
+  "R² vs QQQ",
   "Recovery Factor",
   "Risk-Free Rate",
   "RoMaD",
@@ -81,6 +91,8 @@ const defaultSettings = {
   enableCmdClick: true,
   enableYtdReturns: true,
   enableKeepAlive: true,
+  enableColumnSorting: true,
+  enableBenchmarkCalculations: true,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -240,9 +252,27 @@ async function initEnableYtdReturns() {
 async function initEnableKeepAlive() {
   const enableKeepAliveCheckbox = document.getElementById('enableKeepAlive');
   enableKeepAliveCheckbox.checked = currentSettings.enableKeepAlive ?? true;
-  
+
   enableKeepAliveCheckbox.addEventListener('change', (e) => {
     saveSettings({ enableKeepAlive: e.target.checked });
+  });
+}
+
+async function initEnableColumnSorting() {
+  const enableColumnSortingCheckbox = document.getElementById('enableColumnSorting');
+  enableColumnSortingCheckbox.checked = currentSettings.enableColumnSorting ?? true;
+
+  enableColumnSortingCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableColumnSorting: e.target.checked });
+  });
+}
+
+async function initEnableBenchmarkCalculations() {
+  const enableBenchmarkCalculationsCheckbox = document.getElementById('enableBenchmarkCalculations');
+  enableBenchmarkCalculationsCheckbox.checked = currentSettings.enableBenchmarkCalculations ?? true;
+
+  enableBenchmarkCalculationsCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableBenchmarkCalculations: e.target.checked });
   });
 }
 
@@ -287,6 +317,8 @@ async function initializePopup() {
   await initEnableCmdClick();
   await initEnableYtdReturns();
   await initEnableKeepAlive();
+  await initEnableColumnSorting();
+  await initEnableBenchmarkCalculations();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }

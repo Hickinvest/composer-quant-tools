@@ -199,6 +199,12 @@
         return; // Don't process if tooltips are disabled
     }
 
+    // Defensive guard against non-finite coordinates (rare edge case with synthetic events)
+    // This may not be strictly necessary but prevents potential errors with elementFromPoint
+    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
+        return;
+    }
+
     const elementFromPoint = document.elementFromPoint(event.clientX, event.clientY);
     const tickers = getTickersFromElement(elementFromPoint);
     if (tickers?.length) {

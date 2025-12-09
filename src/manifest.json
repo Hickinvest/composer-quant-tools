@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Composer Quant Tools",
+  "name": "Unofficial Composer Quant Patch",
   "description": "Utility extension that makes working with Composer Symphonies easier",
-  "version": "1.11.1",
+  "version": "1.11.3",
   "background": {
     "service_worker": "background.js",
     "type": "module"
