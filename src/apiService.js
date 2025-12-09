@@ -123,7 +123,6 @@ export async function getAccountDeploys(status = "SUCCEEDED") {
 export async function getSymphonyStatsMeta() {
   const { token, account } = await getTokenAndAccount();
   try {
-    // No cache - always fetch fresh data on page load for accurate P/L values
     const symphonyStats = await makeApiCallWithCache(
       `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphony-stats-meta`,
       {
@@ -133,7 +132,7 @@ export async function getSymphonyStatsMeta() {
       },
       {
         cacheKey: `composerQuantTools-symphony-stats-meta`,
-        cacheTimeout: 0, // No cache - symphony.value changes during trading
+        cacheTimeout: TwelveHours,
       },
       `Get symphony stats meta`
     );
