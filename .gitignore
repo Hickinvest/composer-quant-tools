@@ -3,7 +3,6 @@
 node_modules
 artifacts
 src/lib/pyodide
-src/lib/jslib
 
 .env
 .DS_Store
