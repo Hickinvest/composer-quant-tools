@@ -9,6 +9,9 @@ const columnOptions = [
   // Alpha/Beta columns (CAPM metrics)
   "Alpha vs SPY",
   "Alpha vs QQQ",
+  // Simple P/L columns (from native Composer data)
+  "Actual P/L $",
+  "Actual P/L %",
   "Avg. Daily Return",
   "Avg. Down Month",
   "Avg. Drawdown Days",
