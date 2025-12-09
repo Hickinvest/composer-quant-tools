@@ -374,20 +374,35 @@ export function addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, s
     symphony.dailyChanges.percentageReturns,
   );
 
-  // Calculate actual P/L from current value vs net deposits
-  // Sum all cash flows (deposits and withdrawals) to get net deposits
+  // Store cash flows on symphony for real-time P/L recalculation
   const cashFlows = getCashFlowsForSymphony(symphony, symphonyActivityHistory);
-  const netDeposits = cashFlows.reduce((sum, cf) => sum + cf.amount, 0);
-  const currentValue = symphony.value || 0;
-  const plDollar = currentValue - netDeposits;
-  const plPercent = netDeposits > 0 ? ((currentValue - netDeposits) / netDeposits) * 100 : 0;
+  symphony.netDeposits = cashFlows.reduce((sum, cf) => sum + cf.amount, 0);
+
+  // Calculate P/L using helper function
+  const { plDollar, plPercent } = calculatePL(symphony.value, symphony.netDeposits);
 
   symphony.addedStats = {
     ...symphony.addedStats,
     "Running Days": symphony.dailyChanges.percentageReturns.length,
     "Avg. Daily Return": (average * 100).toFixed(3) + "%",
     "Median Daily Return": (median * 100).toFixed(3) + "%",
-    "P/L $": (plDollar >= 0 ? "+$" : "-$") + Math.abs(plDollar).toFixed(2),
-    "P/L %": (plPercent >= 0 ? "+" : "") + plPercent.toFixed(2) + "%",
+    "P/L $": formatPLDollar(plDollar),
+    "P/L %": formatPLPercent(plPercent),
   };
+}
+
+// Helper functions for P/L calculation and formatting
+export function calculatePL(currentValue, netDeposits) {
+  const value = currentValue || 0;
+  const plDollar = value - netDeposits;
+  const plPercent = netDeposits > 0 ? ((value - netDeposits) / netDeposits) * 100 : 0;
+  return { plDollar, plPercent };
+}
+
+export function formatPLDollar(plDollar) {
+  return (plDollar >= 0 ? "+$" : "-$") + Math.abs(plDollar).toFixed(2);
+}
+
+export function formatPLPercent(plPercent) {
+  return (plPercent >= 0 ? "+" : "") + plPercent.toFixed(2) + "%";
 }
