@@ -1,6 +1,6 @@
 // Table-specific logic for the portfolio page
 import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
-import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz, calculatePL, formatPLDollar, formatPLPercent } from "./liveSymphonyPerformance.js";
+import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
 import { calculateActiveCagr, injectActiveCagrWithTooltip, injectActiveCagrLoadingPlaceholder } from "./portfolioReturns.js";
 import { getBenchmarks, alignBenchmarkWithSymphony } from "./benchmarkData.js";
 import { log } from "./logger.js";
@@ -271,41 +271,12 @@ export function updateTableRows() {
         // Use robust ID extraction that handles various row states
         const symphonyId = getSymphonyIdFromRow(row);
         if (symphonyId == symphony.id) {
-          // Recalculate P/L with current value from DOM if netDeposits is available
-          if (symphony.netDeposits !== undefined) {
-            const currentValue = getCurrentValueFromRow(row);
-            if (currentValue !== null) {
-              const { plDollar, plPercent } = calculatePL(currentValue, symphony.netDeposits);
-              symphony.addedStats["P/L $"] = formatPLDollar(plDollar);
-              symphony.addedStats["P/L %"] = formatPLPercent(plPercent);
-            }
-          }
           updateRowStats(row, symphony.addedStats);
           break;
         }
       }
     }
   });
-}
-
-// Extract current value from Composer's native "Current Value" column
-function getCurrentValueFromRow(row) {
-  // Composer's table structure: find the cell that contains the current value
-  // It's typically in a cell with dollar formatting like "$1,234.56"
-  const cells = row.querySelectorAll("td");
-  for (const cell of cells) {
-    const text = cell.textContent?.trim();
-    // Match dollar amounts like "$1,234.56" or "$12,345.67"
-    // Skip cells that look like percentages or other formats
-    if (text && /^\$[\d,]+\.\d{2}$/.test(text)) {
-      // Parse the dollar amount
-      const value = parseFloat(text.replace(/[$,]/g, ''));
-      if (!isNaN(value) && value > 0) {
-        return value;
-      }
-    }
-  }
-  return null;
 }
 
 export function extendSymphonyStatsRow(symphony) {
