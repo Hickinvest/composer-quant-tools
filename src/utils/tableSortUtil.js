@@ -5,6 +5,25 @@
 
 import { log } from "./logger.js";
 
+// Parse column value for sorting - handles various formats:
+// - Percentages: "12.34%", "+12.34%", "-12.34%"
+// - Dollar amounts: "$123.45", "+$123.45", "-$123.45"
+// - Plain numbers: "123.45", "123"
+function parseColumnValue(value) {
+  if (!value) return 0;
+
+  // Remove % sign
+  let cleaned = value.replace(/%/g, '');
+
+  // Handle dollar format: +$123.45 or -$123.45
+  // Remove $ and keep the sign
+  cleaned = cleaned.replace(/\$/, '');
+
+  // Parse the number (handles +/- signs automatically)
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
 // Helper to extract symphony ID from a row (handles various row states)
 function getSymphonyIdFromRow(row) {
   // Primary: Try to get ID from the symphony link in first cell
@@ -225,13 +244,9 @@ export function sortTableByColumn(columnKey, direction = 'desc') {
     let valueA = cellA?.textContent?.trim() || '';
     let valueB = cellB?.textContent?.trim() || '';
 
-    // Parse percentage values (remove % sign)
-    if (valueA.endsWith('%')) valueA = valueA.slice(0, -1);
-    if (valueB.endsWith('%')) valueB = valueB.slice(0, -1);
-
-    // Convert to numbers for numeric comparison
-    const numA = parseFloat(valueA) || 0;
-    const numB = parseFloat(valueB) || 0;
+    // Parse values - handle percentages, dollar amounts, and plain numbers
+    const numA = parseColumnValue(valueA);
+    const numB = parseColumnValue(valueB);
 
     if (direction === 'asc') {
       return numA - numB;
