@@ -336,10 +336,19 @@ export function addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, s
     symphony.dailyChanges.percentageReturns,
   );
 
+  // Calculate actual P/L from current value vs initial deposit
+  // Use deposit_adjusted_series[0] as net deposits (initial value)
+  const netDeposits = symphony.dailyChanges?.deposit_adjusted_series?.[0] || 0;
+  const currentValue = symphony.value || 0;
+  const plDollar = currentValue - netDeposits;
+  const plPercent = netDeposits > 0 ? ((currentValue - netDeposits) / netDeposits) * 100 : 0;
+
   symphony.addedStats = {
     ...symphony.addedStats,
     "Running Days": symphony.dailyChanges.percentageReturns.length,
     "Avg. Daily Return": (average * 100).toFixed(3) + "%",
     "Median Daily Return": (median * 100).toFixed(3) + "%",
+    "Actual P/L $": (plDollar >= 0 ? "+$" : "-$") + Math.abs(plDollar).toFixed(2),
+    "Actual P/L %": (plPercent >= 0 ? "+" : "") + plPercent.toFixed(2) + "%",
   };
 }

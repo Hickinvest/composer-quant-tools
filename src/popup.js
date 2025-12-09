@@ -6,6 +6,9 @@ const columnOptions = [
   "5Y (ann.)",
   "6M",
   "All-time (ann.)",
+  // Simple P/L columns (from native Composer data)
+  "Actual P/L $",
+  "Actual P/L %",
   "Avg. Daily Return",
   "Avg. Down Month",
   "Avg. Drawdown Days",
