@@ -6,6 +6,43 @@ import { log } from "./logger.js";
 let cachedBacktestData = {};
 let lastBacktestDates = {};
 
+function setupBacktestInterceptor() {
+  const originalFetch = window.fetch;
+  
+  window.fetch = async function(...args) {
+    const url = args[0];
+    const options = args[1] || {};
+    
+    const response = await originalFetch.apply(this, args);
+    
+    if (typeof url === 'string' && url.includes('/symphonies/') && url.includes('/backtest')) {
+      const clonedResponse = response.clone();
+      
+      clonedResponse.json().then(data => {
+        if (data?.stats) {
+          const pathParts = url.split('/');
+          const symphonyId = pathParts[pathParts.indexOf('symphonies') + 1];
+          
+          if (symphonyId) {
+            cachedBacktestData[symphonyId] = data;
+            log('Intercepted backtest data for symphony:', symphonyId);
+            
+            const statsTable = getStatsTable();
+            if (statsTable) {
+              injectExtraColumns();
+              populateExtraColumns();
+            }
+          }
+        }
+      }).catch(err => {
+        log('Error parsing backtest response:', err);
+      });
+    }
+    
+    return response;
+  };
+}
+
 function isLoggedIn() {
   if (window.location.pathname.endsWith("details")) {
     // details page
@@ -761,6 +798,7 @@ function initNavigation() {
 }
 
 export function initFactsheet() {
+  setupBacktestInterceptor();
   collectSymphonyDataForFactsheet();
   initNavigation();
 }
