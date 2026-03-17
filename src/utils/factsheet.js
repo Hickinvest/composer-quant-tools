@@ -75,7 +75,7 @@ function formatRatio(value) {
 }
 
 function getCellFormatter(key) {
-  if (["annualized_turnover", "win_rate", "tail_ratio", "median", "max", "min", "trailing_one_week_return", "trailing_two_week_return"].includes(key)) {
+  if (["win_rate", "median", "max", "min", "trailing_one_week_return", "trailing_two_week_return"].includes(key)) {
     return formatPercent;
   }
   return formatRatio;
