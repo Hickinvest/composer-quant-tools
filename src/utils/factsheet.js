@@ -3,6 +3,9 @@ import { getSymphonyDailyChange, getSymphonyStatsMeta, getSymphonyActivityHistor
 import { addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
 import { log } from "./logger.js";
 
+let cachedBacktestData = {};
+let lastBacktestDates = {};
+
 function isLoggedIn() {
   if (window.location.pathname.endsWith("details")) {
     // details page
@@ -51,7 +54,7 @@ function renderTearsheetButton(factsheet) {
   const button = (buttonId, buttonText, func, css) => {
     let button = document.createElement("button");
     button.id = buttonId;
-    button.className = `rounded flex border border-asset-border shadow-sm bg-panel-bg divide-x divide-solid divide-asset-border text-sm font-light flex items-center justify-center px-2 py-2 shadow-inner transition focus:outline-none leading-none select-none ${css} text-dark bg-white hover:bg-tab-light`;
+    button.className = `rounded flex border border-asset-border shadow-sm bg-panel-bg divide-y divide-solid divide-asset-border text-sm font-light flex items-center justify-center px-2 py-2 shadow-inner transition focus:outline-none leading-none select-none ${css} text-dark bg-white hover:bg-tab-light`;
 
     let span = document.createElement("span");
     span.className = "flex items-center space-x-2";
@@ -67,6 +70,302 @@ function renderTearsheetButton(factsheet) {
     button.appendChild(span);
     return button;
   };
+
+  const extraColumns = [
+    "Sortino Ratio",
+    "Win Rate",
+    "Kurtosis",
+    "Skewness",
+    "Turnover",
+    "Tail Ratio",
+    "Median",
+    "Max",
+    "Min",
+    "1W Return",
+    "2W Return",
+  ];
+
+  const extraColumnKeys = [
+    "sortino_ratio",
+    "win_rate",
+    "kurtosis",
+    "skewness",
+    "annualized_turnover",
+    "tail_ratio",
+    "median",
+    "max",
+    "min",
+    "trailing_one_week_return",
+    "trailing_two_week_return",
+  ];
+
+  function formatPercent(value) {
+    if (value === null || value === undefined) return "-";
+    return (value * 100).toFixed(1) + "%";
+  }
+
+  function formatRatio(value) {
+    if (value === null || value === undefined) return "-";
+    return value.toFixed(2);
+  }
+
+  function getCellFormatter(key) {
+    if (["annualized_turnover", "win_rate", "tail_ratio", "median", "max", "min", "trailing_one_week_return", "trailing_two_week_return"].includes(key)) {
+      return formatPercent;
+    }
+    return formatRatio;
+  }
+
+  function getStatsTable() {
+    const tables = document.querySelectorAll('.border-t.border-b.border-data-table-border table');
+    for (const table of tables) {
+      const headerText = table.textContent || '';
+      if (headerText.includes('Cumulative Return') && headerText.includes('Annualized Return')) {
+        return table;
+      }
+    }
+    return null;
+  }
+
+  function injectExtraColumns() {
+    const statsTable = getStatsTable();
+    if (!statsTable) return;
+
+    if (statsTable.classList.contains('composer-quant-tools-initialized')) return;
+    statsTable.classList.add('composer-quant-tools-initialized');
+
+    const thead = statsTable.querySelector('thead tr');
+    if (!thead) return;
+
+    const lastTh = thead.querySelector('th:last-child');
+    if (!lastTh) return;
+
+    extraColumns.forEach((colName, index) => {
+      const existingTh = thead.querySelector(`.extra-column[data-key="${colName}"]`);
+      if (existingTh) return;
+
+      const th = document.createElement('th');
+      th.className = 'p-2 border-r border-data-table-border text-xs font-medium whitespace-nowrap text-left min-w-[120px] extra-column';
+      th.dataset.key = colName;
+      th.textContent = colName;
+      lastTh.parentNode.insertBefore(th, lastTh);
+    });
+  }
+
+  async function populateExtraColumns() {
+    const statsTable = getStatsTable();
+    if (!statsTable) return;
+
+    const tbody = statsTable.querySelector('tbody');
+    if (!tbody) return;
+
+    const symphonyId = getCurrentSymphonyId();
+    if (!symphonyId || !cachedBacktestData[symphonyId]?.stats) return;
+
+    const backtestStats = cachedBacktestData[symphonyId].stats;
+    const currentDates = `${backtestStats.first_day}-${backtestStats.last_market_day}`;
+    const cachedDates = lastBacktestDates[symphonyId];
+    
+    if (cachedDates && cachedDates !== currentDates) {
+      statsTable.classList.remove('composer-quant-tools-initialized');
+      statsTable.querySelectorAll('.extra-column').forEach(el => el.remove());
+      lastBacktestDates[symphonyId] = currentDates;
+    }
+    
+    if (!cachedDates) {
+      lastBacktestDates[symphonyId] = currentDates;
+    }
+
+    if (statsTable.classList.contains('composer-quant-tools-initialized')) {
+      updateColumnValues(statsTable, backtestStats);
+      return;
+    }
+
+    const rows = tbody.querySelectorAll('tr');
+
+    rows.forEach(async (row) => {
+      const nameCell = row.querySelector('td:first-child a');
+      if (!nameCell) return;
+
+      const symphonyName = nameCell.textContent?.trim();
+
+      let statsData = null;
+      let isBenchmark = false;
+
+      if (backtestStats.benchmarks) {
+        const benchmarkNames = Object.values(cachedBacktestData[symphonyId]?.legend || {});
+        const isBenchmarkRow = Object.keys(backtestStats.benchmarks).some(bmName => 
+          symphonyName?.toLowerCase().includes(bmName.toLowerCase())
+        );
+        
+        if (isBenchmarkRow) {
+          const benchmarkKey = Object.keys(backtestStats.benchmarks).find(bmName => 
+            symphonyName?.toLowerCase().includes(bmName.toLowerCase())
+          );
+          if (benchmarkKey) {
+            statsData = backtestStats.benchmarks[benchmarkKey];
+            isBenchmark = true;
+          }
+        }
+      }
+
+      if (!statsData && !isBenchmark) {
+        statsData = backtestStats;
+      }
+
+      if (!statsData) return;
+
+      extraColumnKeys.forEach((key, index) => {
+        const colName = extraColumns[index];
+        let cell = row.querySelector(`.extra-column[data-key="${colName}"]`);
+        
+        if (!cell) {
+          const lastTd = row.querySelector('td:last-child');
+          if (!lastTd) return;
+          
+          cell = document.createElement('td');
+          cell.className = 'p-2 border-data-table-border border-t border-r border-l extra-column';
+          cell.dataset.key = colName;
+          lastTd.parentNode.insertBefore(cell, lastTd);
+        }
+
+        const formatter = getCellFormatter(key);
+        cell.textContent = formatter(statsData[key]);
+      });
+    });
+  }
+
+  function updateColumnValues(statsTable, backtestStats) {
+    const tbody = statsTable.querySelector('tbody');
+    if (!tbody) return;
+
+    const symphonyId = getCurrentSymphonyId();
+    if (!symphonyId) return;
+
+    const rows = tbody.querySelectorAll('tr');
+
+    rows.forEach((row) => {
+      const nameCell = row.querySelector('td:first-child a');
+      if (!nameCell) return;
+
+      const symphonyName = nameCell.textContent?.trim();
+
+      let statsData = null;
+
+      if (backtestStats.benchmarks) {
+        const isBenchmarkRow = Object.keys(backtestStats.benchmarks).some(bmName => 
+          symphonyName?.toLowerCase().includes(bmName.toLowerCase())
+        );
+        
+        if (isBenchmarkRow) {
+          const benchmarkKey = Object.keys(backtestStats.benchmarks).find(bmName => 
+            symphonyName?.toLowerCase().includes(bmName.toLowerCase())
+          );
+          if (benchmarkKey) {
+            statsData = backtestStats.benchmarks[benchmarkKey];
+          }
+        }
+      }
+
+      if (!statsData) {
+        statsData = backtestStats;
+      }
+
+      if (!statsData) return;
+
+      extraColumnKeys.forEach((key, index) => {
+        const colName = extraColumns[index];
+        const cell = row.querySelector(`.extra-column[data-key="${colName}"]`);
+        if (!cell) return;
+
+        const formatter = getCellFormatter(key);
+        cell.textContent = formatter(statsData[key]);
+      });
+    });
+  }
+
+  function getStatsTableDateRange() {
+    const statsTable = getStatsTable();
+    if (!statsTable) return null;
+    
+    const dateSpan = statsTable.closest('.col-span-3')?.querySelector('span.text-xs');
+    if (!dateSpan) return null;
+    
+    const text = dateSpan.textContent || '';
+    return text;
+  }
+
+  let lastSeenDateRange = null;
+
+  const statsTableObserver = new MutationObserver(() => {
+    const statsTable = getStatsTable();
+    const symphonyId = getCurrentSymphonyId();
+    if (!symphonyId) return;
+
+    const currentDateRange = getStatsTableDateRange();
+    
+    if (currentDateRange && currentDateRange !== lastSeenDateRange) {
+      lastSeenDateRange = currentDateRange;
+      
+      if (statsTable && cachedBacktestData[symphonyId]) {
+        const cachedDates = lastBacktestDates[symphonyId];
+        const cachedStats = cachedBacktestData[symphonyId]?.stats;
+        
+        if (cachedStats) {
+          const currentDates = `${cachedStats.first_day}-${cachedStats.last_market_day}`;
+          if (!cachedDates || cachedDates !== currentDates) {
+            statsTable.classList.remove('composer-quant-tools-initialized');
+            statsTable.querySelectorAll('.extra-column').forEach(el => el.remove());
+            delete cachedBacktestData[symphonyId];
+          }
+        }
+      }
+    }
+    
+    if (statsTable && !statsTable.classList.contains('composer-quant-tools-initialized')) {
+      if (cachedBacktestData[symphonyId]?.stats) {
+        injectExtraColumns();
+        populateExtraColumns();
+      } else {
+        getSymphonyBacktest(symphonyId).then(() => {
+          setTimeout(() => {
+            if (cachedBacktestData[symphonyId]?.stats) {
+              injectExtraColumns();
+              populateExtraColumns();
+            }
+          }, 2000);
+        });
+      }
+    }
+  });
+
+  statsTableObserver.observe(document.body, { childList: true, subtree: true });
+
+  async function fetchBacktestDataForStats() {
+    const symphonyId = getCurrentSymphonyId();
+    if (!symphonyId || cachedBacktestData[symphonyId]) return;
+    
+    try {
+      await getSymphonyBacktest(symphonyId);
+      const statsTable = getStatsTable();
+      if (statsTable && cachedBacktestData[symphonyId]?.stats) {
+        injectExtraColumns();
+        populateExtraColumns();
+      }
+    } catch (error) {
+      log("Error fetching backtest data for stats:", error);
+    }
+  }
+
+  fetchBacktestDataForStats();
+
+  setTimeout(() => {
+    const symphonyId = getCurrentSymphonyId();
+    if (symphonyId && cachedBacktestData[symphonyId]?.stats) {
+      injectExtraColumns();
+      populateExtraColumns();
+    }
+  }, 2000);
 
   function getTearsheet(symphony, backtestData, testType) {
     return new Promise((resolve, reject) => {
@@ -221,7 +520,11 @@ function renderTearsheetButton(factsheet) {
   graphNode.appendChild(tearsheetContainer);
 }
 
-async function getSymphonyBacktest(symphonyId) {
+async function getSymphonyBacktest(symphonyId, forceRefresh = false) {
+  if (!forceRefresh && cachedBacktestData[symphonyId]) {
+    return cachedBacktestData[symphonyId];
+  }
+
   let auth;
   if (isLoggedIn()) {
     auth = await getTokenAndAccount();
@@ -248,12 +551,9 @@ async function getSymphonyBacktest(symphonyId) {
         backtest_version: "v2",
         slippage_percent: 0,
         spread_markup: 0,
-        start_date: "1990-01-01", // we were using this "1969-12-31", But that gives us a "backtest-precedes-earliest-available-data" error from the api
+        start_date: "1990-01-01",
         end_date: new Date().toISOString().split("T")[0],
         benchmark_symphonies: [],
-        // "benchmark_tickers": [
-        //   "SPY"
-        // ]
       }),
       headers: fetchHeaders,
     }
@@ -272,6 +572,7 @@ async function getSymphonyBacktest(symphonyId) {
   }
 
   const backtestData = await response.json();
+  cachedBacktestData[symphonyId] = backtestData;
   return backtestData;
 }
 
@@ -409,12 +710,26 @@ function isPathOnDetailsPage() {
   );
 }
 
+function getCurrentSymphonyId() {
+  if (isPathOnDetailsPage()) {
+    const pathParts = window.location.pathname.split("/");
+    return pathParts[2];
+  }
+  return window.active_factsheet_symphonyId;
+}
+
 function initNavigation() {
+  let lastDetailsUrl = window.location.href;
+
   if (
     window.location.pathname === "/portfolio" ||
     window.location.pathname === "/watch" ||
     window.location.pathname === "/discover"
   ) {
+    waitForFactsheet();
+  }
+
+  if (isPathOnDetailsPage()) {
     waitForFactsheet();
   }
 
@@ -424,6 +739,22 @@ function initNavigation() {
       event.destination.url === "https://app.composer.trade/watch" ||
       event.destination.url === "https://app.composer.trade/discover"
     ) {
+      waitForFactsheet();
+    }
+    
+    if (event.destination.url?.includes?.("/symphony/") && event.destination.url?.includes?.("/details")) {
+      const newSymphonyId = event.destination.url.split("/")[4];
+      
+      if (event.destination.url !== lastDetailsUrl && newSymphonyId) {
+        lastDetailsUrl = event.destination.url;
+        
+        const statsTable = getStatsTable();
+        if (statsTable) {
+          statsTable.classList.remove('composer-quant-tools-initialized');
+          statsTable.querySelectorAll('.extra-column').forEach(el => el.remove());
+        }
+      }
+      
       waitForFactsheet();
     }
   });
