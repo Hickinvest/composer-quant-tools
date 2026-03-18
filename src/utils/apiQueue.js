@@ -158,13 +158,17 @@ class ApiQueue {
       try {
         // refetch the token as it is possible to have an expired token
         if(options.headers?.Authorization?.includes('Bearer')) {
-          const { token } = await getTokenAndAccount();
+          const { token, sessionId } = await getTokenAndAccount();
+          const headers = {
+            ...options.headers,
+            Authorization: `Bearer ${token}`,
+          };
+          if (sessionId) {
+            headers["X-Session-Id"] = sessionId;
+          }
           options = {
             ...options,
-            headers: {
-              ...options.headers,
-              Authorization: `Bearer ${token}`,
-            },
+            headers,
           };
         }
 

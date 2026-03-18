@@ -96,10 +96,10 @@ export function buildReturnsArray(
 
     if (
       dailyChanges.epoch_ms.length - 1 === index && // last day
-      new Date(dailyChanges.epoch_ms).toDateString() !==
+      new Date(change).toDateString() !==
         new Date().toDateString() // last day is not today
     ) {
-      const lastValue = dailyChanges.series[index];
+      const lastValue = dailyChanges[calculationKey][index];
       if (lastValue !== 0) {
         acc.push({
           dateString: new Date().toDateString(),

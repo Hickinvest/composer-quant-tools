@@ -1,17 +1,34 @@
 import { log } from "./logger.js";
 
-let token;
+let tokenString;
+let sessionId;
 
 export function initTokenAndAccountUtil() {
   chrome.storage.local.get(["tokenInfo"], function (result) {
-    token = result.tokenInfo?.token;
-    log("Token loaded:", token);
+    const tokenInfo = result.tokenInfo;
+    if (tokenInfo) {
+      if (typeof tokenInfo.token === "object" && tokenInfo.token !== null) {
+        tokenString = tokenInfo.token.token;
+        sessionId = tokenInfo.token.sessionId;
+      } else {
+        tokenString = tokenInfo.token;
+      }
+    }
+    log("Token loaded:", tokenString, "SessionId:", sessionId);
   });
 
   chrome.storage.onChanged.addListener(function (changes, namespace) {
     if (namespace === "local" && changes.tokenInfo) {
-      token = changes?.tokenInfo?.newValue?.token;
-      log("Token updated:", token);
+      const newValue = changes.tokenInfo.newValue;
+      if (newValue) {
+        if (typeof newValue.token === "object" && newValue.token !== null) {
+          tokenString = newValue.token.token;
+          sessionId = newValue.token.sessionId;
+        } else {
+          tokenString = newValue.token;
+        }
+      }
+      log("Token updated:", tokenString, "SessionId:", sessionId);
     }
   });
 }
@@ -19,9 +36,9 @@ export function initTokenAndAccountUtil() {
 async function pollForToken() {
   return new Promise((resolve) => {
     const interval = setInterval(() => {
-      if (token) {
+      if (tokenString) {
         clearInterval(interval);
-        resolve(token);
+        resolve({ token: tokenString, sessionId });
       }
     }, 100);
   });
@@ -30,19 +47,26 @@ async function pollForToken() {
 let accountPromise;
 
 // getAccount will poll for selectedAccount every 200ms until it is found (So it could run indefinitely if the account is never found)
-function getAccount(token) {
+function getAccount(auth) {
+  const { token, sessionId } = auth;
   if (!accountPromise) {
     accountPromise = new Promise(async (resolve) => {
+      let data;
       try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+        if (sessionId) {
+          headers["X-Session-Id"] = sessionId;
+        }
+
         const resp = await fetch(
           "https://stagehand-api.composer.trade/api/v1/accounts/list",
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: headers,
           },
         );
-        const data = await resp.json();
+        data = await resp.json();
 
         let account;
 
@@ -85,7 +109,7 @@ function getAccount(token) {
       } catch (error) {
         console.error(
           "[composer-quant-tools]: Unable to detect account type with:",
-          data
+          data || error
         );
       }
     });
@@ -107,7 +131,7 @@ function getAccountInfoFromLocalStorage() {
 
 function getTokenAndAccountUtil() {
   let lastAuthRequest;
-  let token;
+  let cachedAuth;
   let account;
   let accountId;
   return async function getTokenAndAccount() {
@@ -116,21 +140,29 @@ function getTokenAndAccountUtil() {
     const currentAccountId = accountInfo['account-id'];
 
     if (
-      token &&
-      currentAccountId !== accountId || 
-      (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000)
+      cachedAuth &&
+      currentAccountId && 
+      (currentAccountId !== accountId || (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000))
     ) {
       accountId = currentAccountId;
       return {
-        token,
+        token: cachedAuth.token,
+        sessionId: cachedAuth.sessionId,
         account: {account_uuid: accountId},
       };
     } else {
-      token = await pollForToken();
-      account = accountId ? {account_uuid: accountId} : await getAccount(token);
+      cachedAuth = await pollForToken();
+      if (currentAccountId) {
+        accountId = currentAccountId;
+        account = {account_uuid: accountId};
+      } else {
+        account = await getAccount(cachedAuth);
+        accountId = account.account_uuid;
+      }
       lastAuthRequest = Date.now();
       return {
-        token,
+        token: cachedAuth.token,
+        sessionId: cachedAuth.sessionId,
         account,
       };
     }

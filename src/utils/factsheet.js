@@ -406,9 +406,10 @@ function renderTearsheetButton(factsheet) {
       const activityHistory = await getSymphonyActivityHistory(symphony.id);
       addGeneratedSymphonyStatsToSymphonyWithModifiedDietz(symphony, activityHistory);
     } else if (testType === "oos") {
-      const { token } = (isLoggedIn() && (await getTokenAndAccount())) || {};
+      const { token, sessionId } = (isLoggedIn() && (await getTokenAndAccount())) || {};
       const headers = { "accept": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (sessionId) headers["X-Session-Id"] = sessionId;
 
       const resp = await fetch(`https://backtest-api.composer.trade/api/v1/public/symphonies/${symphony.id}`, { headers });
       const data = await resp.json();
@@ -459,9 +460,10 @@ async function getTearsheet(symphony, backtestData, type) {
 
 async function getSymphonyBacktest(symphonyId) {
   if (cachedBacktestData && cachedBacktestData.symphony_id === symphonyId) return cachedBacktestData;
-  const { token } = (isLoggedIn() && (await getTokenAndAccount())) || {};
+  const { token, sessionId } = (isLoggedIn() && (await getTokenAndAccount())) || {};
   const headers = { "accept": "application/json", "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (sessionId) headers["X-Session-Id"] = sessionId;
 
   const resp = await fetch(`https://backtest-api.composer.trade/api/v2${isLoggedIn() ? "" : "/public"}/symphonies/${symphonyId}/backtest`, {
     method: "POST",
