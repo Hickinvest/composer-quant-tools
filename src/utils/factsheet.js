@@ -18,15 +18,24 @@ const extraColumnMapping = {
   "Min": "min",
   "Trailing 1W Return": "trailing_one_week_return",
   "Trailing 2W Return": "trailing_two_week_return",
+  "Trailing 1D Return": "trailing_one_day_return",
+  "Trailing 1Y Return": "trailing_one_year_return",
+  "Top 1D Contribution": "top_one_day_contribution",
+  "Top 5% Contribution": "top_five_percent_day_contribution",
+  "Top 10% Contribution": "top_ten_percent_day_contribution",
+  "Herfindahl Index": "herfindahl_index",
+  "Size": "size",
 };
 
 const columnTooltips = {
   "Cumulative Return": "The total percent change in investment value over the chosen period.",
   "Annualized Return": "The geometric average amount earned by an investment each year, assuming profits are reinvested.",
+  "Trailing 1D Return": "The percent change in the value over the most recent 1-day period.",
   "Trailing 1W Return": "The percent change in the value over the most recent 1-week period.",
   "Trailing 2W Return": "The percent change in the value over the most recent 2-week period.",
   "Trailing 1M Return": "The percent change in the value over the most recent 1-month period.",
   "Trailing 3M Return": "The percent change in the value over the most recent 3-month period.",
+  "Trailing 1Y Return": "The percent change in the value over the most recent 1-year period.",
   "Sharpe Ratio": "A measure of risk-adjusted return. It's the annualized arithmetic mean of daily returns divided by its annualized standard deviation.",
   "Sortino Ratio": "A measure of risk-adjusted return that focuses only on downside deviation, ignoring 'good' (upside) volatility.",
   "Calmar Ratio": "The ratio of annualized return to maximum drawdown. Measures return relative to historical drawdown risk.",
@@ -39,16 +48,23 @@ const columnTooltips = {
   "Kurtosis": "A measure of 'fat tails'. High kurtosis indicates more frequent extreme returns (outliers).",
   "Skewness": "Measures asymmetry. Positive skew indicates more frequent small losses balanced by occasional large gains.",
   "Turnover": "The annualized frequency at which the portfolio's assets are replaced.",
-  "Tail Ratio": "The ratio of the 95th percentile return to the absolute 5th percentile return. Right vs Left tail strength."
+  "Tail Ratio": "The ratio of the 95th percentile return to the absolute 5th percentile return. Right vs Left tail strength.",
+  "Top 1D Contribution": "The contribution of the single best day to total returns.",
+  "Top 5% Contribution": "The combined contribution of the top 5% best days to total returns.",
+  "Top 10% Contribution": "The combined contribution of the top 10% best days to total returns.",
+  "Herfindahl Index": "A measure of concentration. Higher values indicate more concentrated portfolios.",
+  "Size": "The number of trading days in the analysis period."
 };
 
 const desiredMasterOrder = [
   "Cumulative Return",
   "Annualized Return",
+  "Trailing 1D Return",
   "Trailing 1W Return",
   "Trailing 2W Return",
   "Trailing 1M Return",
   "Trailing 3M Return",
+  "Trailing 1Y Return",
   "Sharpe Ratio",
   "Sortino Ratio",
   "Calmar Ratio",
@@ -61,7 +77,12 @@ const desiredMasterOrder = [
   "Kurtosis",
   "Skewness",
   "Turnover",
-  "Tail Ratio"
+  "Tail Ratio",
+  "Top 1D Contribution",
+  "Top 5% Contribution",
+  "Top 10% Contribution",
+  "Herfindahl Index",
+  "Size"
 ];
 
 function formatPercent(value) {
@@ -75,8 +96,14 @@ function formatRatio(value) {
 }
 
 function getCellFormatter(key) {
-  if (["win_rate", "median", "max", "min", "trailing_one_week_return", "trailing_two_week_return"].includes(key)) {
+  if (["win_rate", "median", "max", "min", "trailing_one_week_return", "trailing_two_week_return", "trailing_one_day_return", "trailing_one_year_return"].includes(key)) {
     return formatPercent;
+  }
+  if (key === "size") {
+    return (value) => {
+      if (value === null || value === undefined) return "-";
+      return value.toLocaleString();
+    };
   }
   return formatRatio;
 }
