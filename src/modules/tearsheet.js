@@ -14,29 +14,35 @@ async function getTearsheetHtml(symphony, series_data, type, backtestData) {
 
   series_data = getSeriesData(type, backtestData, symphony) || series_data;
 
-  const benchmarkData = await fetchBenchmarkData();
-  
-  if (benchmarkData) {
-    // Align benchmark data with strategy data
-    const alignedBenchmarkSeries = alignBenchmarkData(series_data, benchmarkData);
-    
-    if (alignedBenchmarkSeries) {
-      // If benchmark alignment succeeded
-      series_data.benchmark_series = alignedBenchmarkSeries
-    }
-  }
-
   if (series_data.epoch_ms.length <= 1) {
     return {
       error: `Symphony_name:${symphony.name} Symphony_id:${symphony.id} Not enough data to calculate tearsheet report`,
     };
   }
+
+  // For live type, we need to align epoch_ms with percentageReturns BEFORE benchmark alignment
+  // because percentageReturns has one fewer element than epoch_ms (Modified Dietz starts from day 1)
   if (type === "live") {
-    // when using live data we need to adjust for deposits and withdrawals
-    // this is done in the liveSymphonyPerformance.js file
+    series_data.epoch_ms = symphony.dailyChanges.epoch_ms.slice(0, symphony.dailyChanges.percentageReturns.length);
     series_data.returns = symphony.dailyChanges.percentageReturns.map(d => d.percentChange);
   } else {
     series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
+  }
+
+  // Benchmark alignment happens AFTER epoch_ms/returns alignment to ensure proper length matching
+  const benchmarkData = await fetchBenchmarkData();
+  
+  if (benchmarkData) {
+    const alignedBenchmarkSeries = alignBenchmarkData(series_data, benchmarkData);
+    
+    if (alignedBenchmarkSeries) {
+      series_data.benchmark_series = alignedBenchmarkSeries
+    }
+  }
+
+  if (type === "live") {
+    // Clear benchmark for live since we're using percentageReturns not deposit_adjusted_series
+    delete series_data.benchmark_series;
   }
 
   const pyodide = await getPyodide();
