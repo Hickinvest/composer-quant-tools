@@ -10,13 +10,30 @@
 }
 .liveTickerTooltip {
   position: fixed;
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: 8px;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  z-index: 1000;
-  max-width: 300px;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 10000;
+  max-width: 320px;
+  
+  /* Theme Awareness */
+  color-scheme: light dark;
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1a1a1a;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: normal;
+}
+
+@media (prefers-color-scheme: dark) {
+  .liveTickerTooltip {
+    background-color: rgba(28, 28, 30, 0.9);
+    color: #f2f2f7;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
 }
 .liveTickerTooltip.hidden {
   display: none;

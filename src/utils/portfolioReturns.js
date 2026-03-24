@@ -253,8 +253,8 @@ export async function logPortfolioReturns() {
   const result = await chrome.storage.local.get(['enableYtdReturns']);
   const enableYtdReturns = result?.enableYtdReturns ?? true;
 
-  const { token, account } = await getTokenAndAccount();
-  const history = await fetchPortfolioHistory(account, token);
+  const { token, sessionId, account } = await getTokenAndAccount();
+  const history = await fetchPortfolioHistory(account, token, sessionId);
   if (!history || !history.epoch_ms || !history.series) {
     log("No portfolio history found");
     return;
@@ -265,7 +265,7 @@ export async function logPortfolioReturns() {
   const years = getYearsBetween(firstDate, lastDate);
   const allTransfers = [];
   for (const year of years) {
-    const transfers = await fetchAchTransfers(account, token, year);
+    const transfers = await fetchAchTransfers(account, token, year, sessionId);
     allTransfers.push(...(Array.isArray(transfers) ? transfers : []));
   }
 

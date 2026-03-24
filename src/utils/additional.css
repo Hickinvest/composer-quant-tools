@@ -19,10 +19,58 @@
 }
 
 #app table[data-sortable-initialized="true"] tr > th:first-child,
-td:first-child {
+#app table[data-sortable-initialized="true"] tr > td:first-child {
   position: sticky;
   left: 0;
   border-right: 1px solid #cfcfcf;
   z-index: 1;
-  background: rgb(236 237 238 / var(--tw-bg-opacity));
+  background: rgb(236 237 238);
+}
+
+.composer-custom-tooltip-root {
+  position: fixed;
+  z-index: 999999;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-100%);
+  margin-top: -8px;
+  display: none;
+}
+
+.composer-custom-tooltip-root .tippy-box {
+  background-color: #333;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  max-width: 250px;
+  line-height: 1.4;
+  text-align: left;
+  box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.12), 0 10px 36px -4px rgba(0, 0, 0, 0.3);
+  transition: opacity 300ms, transform 300ms;
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.composer-custom-tooltip-root .tippy-box[data-state="visible"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.composer-custom-tooltip-root .tippy-content {
+  padding: 5px 9px;
+  word-wrap: break-word;
+}
+
+.composer-custom-tooltip-root .tippy-box::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+.cursor-help {
+  cursor: help;
 }

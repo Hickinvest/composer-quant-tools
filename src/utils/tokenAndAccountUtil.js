@@ -1,17 +1,34 @@
 import { log } from "./logger.js";
 
-let token;
+let tokenString;
+let sessionId;
 
 export function initTokenAndAccountUtil() {
   chrome.storage.local.get(["tokenInfo"], function (result) {
-    token = result.tokenInfo?.token;
-    log("Token loaded:", token);
+    const tokenInfo = result.tokenInfo;
+    if (tokenInfo) {
+      if (typeof tokenInfo.token === "object" && tokenInfo.token !== null) {
+        tokenString = tokenInfo.token.token;
+        sessionId = tokenInfo.token.sessionId;
+      } else {
+        tokenString = tokenInfo.token;
+      }
+    }
+    log("Token loaded:", tokenString, "SessionId:", sessionId);
   });
 
   chrome.storage.onChanged.addListener(function (changes, namespace) {
     if (namespace === "local" && changes.tokenInfo) {
-      token = changes?.tokenInfo?.newValue?.token;
-      log("Token updated:", token);
+      const newValue = changes.tokenInfo.newValue;
+      if (newValue) {
+        if (typeof newValue.token === "object" && newValue.token !== null) {
+          tokenString = newValue.token.token;
+          sessionId = newValue.token.sessionId;
+        } else {
+          tokenString = newValue.token;
+        }
+      }
+      log("Token updated:", tokenString, "SessionId:", sessionId);
     }
   });
 }
@@ -19,9 +36,9 @@ export function initTokenAndAccountUtil() {
 async function pollForToken() {
   return new Promise((resolve) => {
     const interval = setInterval(() => {
-      if (token) {
+      if (tokenString) {
         clearInterval(interval);
-        resolve(token);
+        resolve({ token: tokenString, sessionId });
       }
     }, 100);
   });
@@ -30,19 +47,26 @@ async function pollForToken() {
 let accountPromise;
 
 // getAccount will poll for selectedAccount every 200ms until it is found (So it could run indefinitely if the account is never found)
-function getAccount(token) {
+function getAccount(auth) {
+  const { token, sessionId } = auth;
   if (!accountPromise) {
     accountPromise = new Promise(async (resolve) => {
+      let data;
       try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+        if (sessionId) {
+          headers["X-Session-Id"] = sessionId;
+        }
+
         const resp = await fetch(
           "https://stagehand-api.composer.trade/api/v1/accounts/list",
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: headers,
           },
         );
-        const data = await resp.json();
+        data = await resp.json();
 
         let account;
 
@@ -104,8 +128,10 @@ function getAccount(token) {
           }
         }
       } catch (error) {
-        log("Unable to detect account type:", error);
-        resolve(null);
+        console.error(
+          "[composer-quant-tools]: Unable to detect account type with:",
+          data || error
+        );
       }
     });
   }
@@ -126,7 +152,7 @@ function getAccountInfoFromLocalStorage() {
 
 function getTokenAndAccountUtil() {
   let lastAuthRequest;
-  let token;
+  let cachedAuth;
   let account;
   let accountId;
   return async function getTokenAndAccount() {
@@ -134,36 +160,30 @@ function getTokenAndAccountUtil() {
     // get the latest account type every time and invalidate the cache if it has changed
     const currentAccountId = accountInfo['account-id'];
 
-    // Check if we have a valid cached token and account (within 20 minutes)
-    const cacheValid = lastAuthRequest && (Date.now() - lastAuthRequest < 20 * 60 * 1000);
-
-    if (token && accountId && cacheValid && currentAccountId === accountId) {
+    if (
+      cachedAuth &&
+      currentAccountId && 
+      (currentAccountId !== accountId || (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000))
+    ) {
+      accountId = currentAccountId;
       return {
-        token,
+        token: cachedAuth.token,
+        sessionId: cachedAuth.sessionId,
         account: {account_uuid: accountId},
       };
     } else {
-      token = await pollForToken();
-
-      // Try to use currentAccountId from localStorage, otherwise fetch account
+      cachedAuth = await pollForToken();
       if (currentAccountId) {
         accountId = currentAccountId;
         account = {account_uuid: accountId};
-        log("Using account from localStorage:", accountId);
       } else {
-        // Reset the promise so we can try again
-        accountPromise = null;
-        account = await getAccount(token);
-        accountId = account?.account_uuid;
+        account = await getAccount(cachedAuth);
+        accountId = account.account_uuid;
       }
-
-      if (!accountId) {
-        log("Could not determine account ID");
-      }
-
       lastAuthRequest = Date.now();
       return {
-        token,
+        token: cachedAuth.token,
+        sessionId: cachedAuth.sessionId,
         account,
       };
     }
