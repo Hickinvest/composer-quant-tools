@@ -96,10 +96,10 @@ export function buildReturnsArray(
 
     if (
       dailyChanges.epoch_ms.length - 1 === index && // last day
-      new Date(dailyChanges.epoch_ms).toDateString() !==
+      new Date(change).toDateString() !==
         new Date().toDateString() // last day is not today
     ) {
-      const lastValue = dailyChanges.series[index];
+      const lastValue = dailyChanges[calculationKey][index];
       if (lastValue !== 0) {
         acc.push({
           dateString: new Date().toDateString(),
@@ -129,7 +129,6 @@ export function buildSymphonyPercentages(symphony, symphonyDeploys) {
 }
 
 export async function addQuantstatsToSymphony(symphony, accountDeploys, benchmarkData = null) {
-  //create a promise that resolves when the stats are added
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
       { action: "getQuantStats", symphony, accountDeploys, benchmarkData },
@@ -148,34 +147,28 @@ export async function addQuantstatsToSymphony(symphony, accountDeploys, benchmar
           if (symphony.quantstats.alpha_beta) {
             const alphaBeta = symphony.quantstats.alpha_beta;
 
-            // Alpha vs SPY (annualized, as percentage)
             if (alphaBeta.SPY?.alpha != null) {
-              const alphaAnnualizedSpy = alphaBeta.SPY.alpha * 252 * 100; // Daily alpha * 252 days * 100 for percentage
+              const alphaAnnualizedSpy = alphaBeta.SPY.alpha * 252 * 100;
               symphony.addedStats["Alpha vs SPY"] = alphaAnnualizedSpy.toFixed(2) + "%";
             }
 
-            // Alpha vs QQQ (annualized, as percentage)
             if (alphaBeta.QQQ?.alpha != null) {
               const alphaAnnualizedQqq = alphaBeta.QQQ.alpha * 252 * 100;
               symphony.addedStats["Alpha vs QQQ"] = alphaAnnualizedQqq.toFixed(2) + "%";
             }
 
-            // Beta vs SPY
             if (alphaBeta.SPY?.beta != null) {
               symphony.addedStats["Beta vs SPY"] = alphaBeta.SPY.beta.toFixed(2);
             }
 
-            // Beta vs QQQ
             if (alphaBeta.QQQ?.beta != null) {
               symphony.addedStats["Beta vs QQQ"] = alphaBeta.QQQ.beta.toFixed(2);
             }
 
-            // R² vs SPY
             if (alphaBeta.SPY?.r_squared != null) {
               symphony.addedStats["R² vs SPY"] = (alphaBeta.SPY.r_squared * 100).toFixed(1) + "%";
             }
 
-            // R² vs QQQ
             if (alphaBeta.QQQ?.r_squared != null) {
               symphony.addedStats["R² vs QQQ"] = (alphaBeta.QQQ.r_squared * 100).toFixed(1) + "%";
             }
@@ -189,7 +182,6 @@ export async function addQuantstatsToSymphony(symphony, accountDeploys, benchmar
 }
 
 export function calculateAverageAndMedian(data) {
-  // Extract percent changes and filter out invalid values
   let percentChanges = data
     .map((entry) => entry.percentChange)
     .filter(
@@ -203,16 +195,11 @@ export function calculateAverageAndMedian(data) {
     return { average: 0, median: 0 };
   }
 
-  // Calculate the sum of percent changes
   let sum = percentChanges.reduce((acc, value) => acc + value, 0);
-
-  // Calculate the average (mean)
   let average = sum / percentChanges.length;
 
-  // Sort the percent changes for median calculation
   percentChanges.sort((a, b) => a - b);
 
-  // Calculate the median
   let middle = Math.floor(percentChanges.length / 2);
   let median =
     percentChanges.length % 2 === 0
@@ -244,9 +231,9 @@ export function getCashFlowsForSymphony(symphony, symphonyActivityHistory) {
   }
 
   return symphonyActivityHistory.data
-    .filter(activity => 
-      activity.symphony_id === symphony.id && 
-      activity.cash_change !== null && 
+    .filter(activity =>
+      activity.symphony_id === symphony.id &&
+      activity.cash_change !== null &&
       activity.cash_change !== undefined &&
       activity.type === "cash_adjustment_performed"
     )
@@ -259,28 +246,24 @@ export function getCashFlowsForSymphony(symphony, symphonyActivityHistory) {
 }
 
 export function calculateModifiedDietzReturn(bmv, emv, cashFlows, periodStart, periodEnd) {
-  // Filter cash flows that occurred during the period
-  const periodCashFlows = cashFlows.filter(cf => 
+  const periodCashFlows = cashFlows.filter(cf =>
     cf.date >= periodStart && cf.date <= periodEnd
   );
 
   if (periodCashFlows.length === 0) {
-    // No cash flows, use simple return
     return bmv !== 0 ? (emv - bmv) / bmv : 0;
   }
 
-  // Calculate total cash flows
   const totalCashFlows = periodCashFlows.reduce((sum, cf) => sum + cf.amount, 0);
-  
-  // Calculate weighted cash flows
-  const totalDays = (periodEnd - periodStart) / (1000 * 60 * 60 * 24); // Convert to days
+
+  const totalDays = (periodEnd - periodStart) / (1000 * 60 * 60 * 24);
   const weightedCashFlows = periodCashFlows.reduce((sum, cf) => {
     const daysFromStart = (cf.date - periodStart) / (1000 * 60 * 60 * 24);
     const weight = (totalDays - daysFromStart) / totalDays;
     return sum + (cf.amount * weight);
   }, 0);
 
-  // Modified Dietz formula: (EMV - BMV - ∑CF) / (BMV + ∑(CF × w))
+  // Modified Dietz formula: (EMV - BMV - CF) / (BMV + (CF * w))
   const denominator = bmv + weightedCashFlows;
   return denominator !== 0 ? (emv - bmv - totalCashFlows) / denominator : 0;
 }
@@ -291,13 +274,11 @@ export function buildReturnsArrayWithModifiedDietz(
   currentValue,
   calculationKey = "series"
 ) {
-
   const returns = dailyChanges.epoch_ms.reduce((acc, change, index) => {
     const dateString = new Date(change).toDateString();
     const currentValue = dailyChanges[calculationKey][index];
-    
+
     if (index === 0) {
-      // First day - no return to calculate
       return acc;
     }
 
@@ -318,23 +299,16 @@ export function buildReturnsArrayWithModifiedDietz(
       percentChange: dailyReturn
     });
 
-    // Only add today's return if this is the last day and it's not today
-    // AND if the last day is not today
-    const lastDayDate = new Date(change);
-    const todayDate = new Date();
     const isLastDay = index === dailyChanges.epoch_ms.length - 1;
-    const isLastDayToday = lastDayDate.toDateString() === todayDate.toDateString();
-    
+    const isLastDayToday = new Date(change).toDateString() === new Date().toDateString();
+
     if (isLastDay && !isLastDayToday) {
-      const todayStart = new Date(change);
-      const todayEnd = new Date();
-      
       const todayReturn = calculateModifiedDietzReturn(
         currentValue,
-        currentValue, // Use currentValue as both start and end for today
+        currentValue,
         cashFlows,
-        todayStart,
-        todayEnd
+        new Date(change),
+        new Date()
       );
 
       acc.push({
@@ -346,7 +320,6 @@ export function buildReturnsArrayWithModifiedDietz(
     return acc;
   }, []);
 
-  // add the first day's returns
   returns.unshift({
     dateString: (new Date(dailyChanges.epoch_ms[0])).toDateString(),
     percentChange: 0
@@ -356,7 +329,7 @@ export function buildReturnsArrayWithModifiedDietz(
 }
 
 export function buildSymphonyPercentagesWithModifiedDietz(symphony, symphonyActivityHistory) {
-  const cashFlows = getCashFlowsForSymphony(symphony,symphonyActivityHistory);
+  const cashFlows = getCashFlowsForSymphony(symphony, symphonyActivityHistory);
 
   symphony.dailyChanges.percentageReturns = buildReturnsArrayWithModifiedDietz(
     symphony.dailyChanges,

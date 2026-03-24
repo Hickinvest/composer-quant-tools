@@ -10,6 +10,11 @@ async function getQuantStats(symphony, series_data, benchmarkData = null) {
   //   "series":[198.9],
   //   "deposit_adjusted_series":[200]
   // }
+
+  // Rebuild epoch_ms from dailyChanges to ensure alignment with returns
+  // (SolarWolf fix: original epoch_ms can drift out of sync)
+  series_data.epoch_ms = symphony.dailyChanges.percentageReturns.map(d => new Date(d.dateString).getTime());
+
   // Need at least 2 data points to calculate any returns
   if (series_data.epoch_ms.length <= 1) {
     return {
@@ -18,7 +23,6 @@ async function getQuantStats(symphony, series_data, benchmarkData = null) {
   }
   // Note: Alpha/beta can be calculated with any amount of data (5+ points recommended)
   // CAGR and other annualized metrics may fail for very short time spans - that's handled with try-catch in Python
-  // series_data.returns = generateReturnsArrayFromDepositAdjustedSeries(series_data.deposit_adjusted_series);
   series_data.returns = symphony.dailyChanges.percentageReturns.map(d => d.percentChange);
 
   // Prepare benchmark data if provided
@@ -53,11 +57,9 @@ async function getQuantStats(symphony, series_data, benchmarkData = null) {
         all_dates = pd.to_datetime(data['epoch_ms'], unit='ms')
         returns_len = len(data['returns'])
         datetime_series = all_dates[:returns_len] if len(all_dates) > returns_len else all_dates
-        # series_series = pd.Series(data['series'], index=datetime_series, name='series') # we are not using the series for now since it will include deposits and withdrawals skewing the results
-        # deposit_adjusted_series = pd.Series(data['deposit_adjusted_series'], index=datetime_series, name='deposit_adjusted_series')
         returns_series = pd.Series(data['returns'], index=datetime_series, name='returns')
 
-        # Wrap main quantstats calls in try-catch for edge cases (very short time spans, etc.)
+        # Wrap main quantstats calls in individual try-catch for edge cases (very short time spans, etc.)
         try:
             quantstats_metrics = qs.reports.metrics(returns_series, title=symphony_name, mode='full', display = False, sep=True, prepare_returns=False, internal="True").to_dict()['Strategy']
         except Exception as metrics_err:
@@ -73,7 +75,6 @@ async function getQuantStats(symphony, series_data, benchmarkData = null) {
             quantstats_drawdown_details = qs.stats.drawdown_details(quantstats_drawdown_series).sort_values(by='max drawdown', ascending=True)[:30].to_dict('records')
         except Exception:
             quantstats_drawdown_details = []
-        # qs.reports.html(returns_series, title=symphony_id, output=f"/{symphony_id}.html") would love to get this working and maybe serve it as a blob
 
         # Calculate alpha/beta vs benchmarks if benchmark data is provided
         alpha_beta_results = {}
@@ -193,4 +194,4 @@ async function getQuantStats(symphony, series_data, benchmarkData = null) {
   }
 }
 
-export { getQuantStats }; 
+export { getQuantStats };

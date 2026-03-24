@@ -2,6 +2,7 @@ import { getTokenAndAccount, fetchPortfolioHistory, fetchAchTransfers, performan
 import { log } from "./logger.js";
 
 const YTD_ADJUSTMENT_KEY = 'composer-returns-ytd-adjustment';
+const CAGR_ADJUSTMENT_KEY = 'composer-returns-cagr-adjustment';
 
 // Helper to get all years between two dates (inclusive)
 function getYearsBetween(startDate, endDate) {
@@ -38,6 +39,15 @@ function getStoredYtdAdjustment() {
 
 function setStoredYtdAdjustment(val) {
   localStorage.setItem(YTD_ADJUSTMENT_KEY, String(val));
+}
+
+function getStoredCagrAdjustment() {
+  const val = localStorage.getItem(CAGR_ADJUSTMENT_KEY);
+  return val !== null ? parseFloat(val) || 0 : 0;
+}
+
+function setStoredCagrAdjustment(val) {
+  localStorage.setItem(CAGR_ADJUSTMENT_KEY, String(val));
 }
 
 function createYtdReturnsTooltip(stats, anchorRect, ytdReturnElement) {
@@ -159,10 +169,17 @@ function createYtdReturnsTooltip(stats, anchorRect, ytdReturnElement) {
   return tooltip;
 }
 
-function createCagrTooltip(stats, anchorRect) {
+function createCagrTooltip(stats, anchorRect, cagrValueElement) {
   // Remove any existing CAGR tooltip
   const existing = document.getElementById('composer-cagr-tooltip');
   if (existing) existing.remove();
+
+  const cagrAdjustment = getStoredCagrAdjustment();
+
+  // Recalculate values using current stored adjustment (stats may be stale from page load)
+  const currentNetDeposits = stats.achOnlyDeposits + cagrAdjustment;
+  const currentTotalReturn = currentNetDeposits > 0 ? (stats.endValue - currentNetDeposits) / currentNetDeposits : 0;
+  const currentCagr = currentNetDeposits > 0 ? Math.pow(1 + currentTotalReturn, 1 / stats.years) - 1 : 0;
 
   const tooltip = document.createElement('div');
   tooltip.id = 'composer-cagr-tooltip';
@@ -201,13 +218,21 @@ function createCagrTooltip(stats, anchorRect) {
         display: flex;
         align-items: center;
       }
+      #composer-cagr-popup-values .composer-value input {
+        width: 100px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #888;
+        font-weight: normal;
+        transform: translateX(-5px);
+        height: 28px;
+        box-sizing: border-box;
+      }
     `;
     document.head.appendChild(style);
   }
 
   const yearsFormatted = stats.years.toFixed(2);
-  const totalReturnFormatted = (stats.totalReturn * 100).toFixed(2);
-  const cagrFormatted = (stats.cagr * 100).toFixed(2);
 
   tooltip.innerHTML = `
     <div style="font-weight:bold; font-size: 16px;">Portfolio CAGR</div>
@@ -215,20 +240,58 @@ function createCagrTooltip(stats, anchorRect) {
       (Portfolio Value - Net Deposits) / Net Deposits, annualized
     </div>
     <div id="composer-cagr-popup-values">
-      <div class="composer-label">CAGR:</div><div class="composer-value">${cagrFormatted}%</div>
-      <div class="composer-label">Total Return:</div><div class="composer-value">${totalReturnFormatted}%</div>
+      <div class="composer-label">CAGR:</div><div class="composer-value" id="composer-cagr-value">${(currentCagr * 100).toFixed(2)}%</div>
+      <div class="composer-label">Total Return:</div><div class="composer-value" id="composer-cagr-total-return">${(currentTotalReturn * 100).toFixed(2)}%</div>
       <div class="composer-label">Years Invested:</div><div class="composer-value">${yearsFormatted}</div>
       <div class="composer-label">&nbsp;</div><div class="composer-value"></div>
       <div class="composer-label">Start Value:</div><div class="composer-value">$${stats.startValue.toFixed(2)}</div>
       <div class="composer-label">End Value:</div><div class="composer-value">$${stats.endValue.toFixed(2)}</div>
-      <div class="composer-label">Net Deposits:</div><div class="composer-value">$${stats.netDeposits.toFixed(2)}${stats.hasAdjustment ? ' *' : ''}</div>
+      <div class="composer-label">ACH Deposits:</div><div class="composer-value">$${stats.achOnlyDeposits.toFixed(2)}</div>
+      <div class="composer-label">Net Deposits:</div><div class="composer-value" id="composer-cagr-net-deposits">$${currentNetDeposits.toFixed(2)}</div>
+      <div class="composer-label">&nbsp;</div><div class="composer-value"></div>
+      <div class="composer-label">Net Adjustments:</div><div class="composer-value"><input id="composer-cagr-adjust-input" type="number" step="any" value="${cagrAdjustment}" style="width:100px; font-size:15px; padding:2px 6px; border-radius:4px; border:1px solid #888; margin-left:4px; color:#222;" /></div>
     </div>
     <div style="margin-top:14px; font-size:11px; color:#b0b8c9; line-height:1.5; opacity:0.6;">
-      <b>Net deposits</b> includes ACH transfers${stats.hasAdjustment ? ' plus your manual adjustment (wire/IRA)' : '. Wire transfers and IRA rollovers require manual adjustment in YTD tooltip'}.<br><br>
+      <b>ACH Deposits</b> are automatically tracked. <b>Wire transfers and IRA rollovers</b> must be added manually as <b>"Net Adjustments"</b>.<br><br>
       Uses Composer's formula: (Portfolio Value - Net Deposits) / Net Deposits. After 1 year, CAGR equals Cumulative Return.
     </div>
   `;
   document.body.appendChild(tooltip);
+
+  // Also update the main card to reflect current adjustment
+  if (cagrValueElement && currentNetDeposits > 0) {
+    cagrValueElement.textContent = `${(currentCagr * 100).toFixed(2)}%`;
+  }
+
+  // Wire up the adjustment input to recalculate CAGR in real-time
+  setTimeout(() => {
+    const cagrAdjInput = document.getElementById('composer-cagr-adjust-input');
+    if (cagrAdjInput) {
+      cagrAdjInput.addEventListener('input', () => {
+        const adj = parseFloat(cagrAdjInput.value) || 0;
+        setStoredCagrAdjustment(adj);
+
+        // Recalculate with new adjustment
+        const newNetDeposits = stats.achOnlyDeposits + adj;
+        if (newNetDeposits > 0) {
+          const newTotalReturn = (stats.endValue - newNetDeposits) / newNetDeposits;
+          const newCagr = Math.pow(1 + newTotalReturn, 1 / stats.years) - 1;
+
+          // Update tooltip values
+          const netDepositsEl = document.getElementById('composer-cagr-net-deposits');
+          const cagrEl = document.getElementById('composer-cagr-value');
+          const totalReturnEl = document.getElementById('composer-cagr-total-return');
+
+          if (netDepositsEl) netDepositsEl.textContent = `$${newNetDeposits.toFixed(2)}`;
+          if (cagrEl) cagrEl.textContent = `${(newCagr * 100).toFixed(2)}%`;
+          if (totalReturnEl) totalReturnEl.textContent = `${(newTotalReturn * 100).toFixed(2)}%`;
+
+          // Update main card value
+          if (cagrValueElement) cagrValueElement.textContent = `${(newCagr * 100).toFixed(2)}%`;
+        }
+      });
+    }
+  }, 0);
 
   // Position tooltip near the anchor
   if (anchorRect) {
@@ -256,9 +319,31 @@ function createCagrTooltip(stats, anchorRect) {
   return tooltip;
 }
 
-const MIN_RUNNING_DAYS_FOR_CAGR = 15; // Minimum trading days required for inclusion in Active CAGR
+let minRunningDaysForCagr = 0; // Minimum trading days required for inclusion in Active CAGR (0 = include all)
 
-export function calculateActiveCagr() {
+// Load saved setting from chrome.storage
+try {
+  chrome.storage.local.get(['minActiveCagrDays'], (result) => {
+    if (result.minActiveCagrDays !== undefined) {
+      minRunningDaysForCagr = result.minActiveCagrDays;
+    }
+  });
+} catch (e) { /* ignore if storage unavailable */ }
+
+export function getMinCagrDays() {
+  return minRunningDaysForCagr;
+}
+
+export function setMinCagrDays(days) {
+  minRunningDaysForCagr = days;
+  try {
+    chrome.storage.local.set({ minActiveCagrDays: days });
+  } catch (e) { /* ignore */ }
+}
+
+export function calculateActiveCagr(minDaysOverride) {
+  const minDays = minDaysOverride !== undefined ? minDaysOverride : minRunningDaysForCagr;
+
   const symphonies = performanceData?.symphonyStats?.symphonies;
   if (!symphonies || symphonies.length === 0) {
     log('No symphony data available for Active CAGR calculation');
@@ -277,22 +362,22 @@ export function calculateActiveCagr() {
     return null;
   }
 
-  // Further filter to symphonies with minimum running days for CAGR calculation (>15 days)
-  const validSymphonies = allValidSymphonies.filter(s =>
-    s.addedStats["Running Days"] > MIN_RUNNING_DAYS_FOR_CAGR
-  );
+  // Further filter to symphonies with minimum running days for CAGR calculation
+  const validSymphonies = minDays > 0
+    ? allValidSymphonies.filter(s => s.addedStats["Running Days"] > minDays)
+    : allValidSymphonies;
 
   const excludedCount = allValidSymphonies.length - validSymphonies.length;
 
   if (validSymphonies.length === 0) {
-    log(`No symphonies meet minimum ${MIN_RUNNING_DAYS_FOR_CAGR} running days threshold`);
+    log(`No symphonies meet minimum ${minDays} running days threshold`);
     return {
       activeCagr: null,
       simpleCagr: null,
       totalValue: allValidSymphonies.reduce((sum, s) => sum + s.value, 0),
       symphonyCount: 0,
       excludedCount,
-      minDays: MIN_RUNNING_DAYS_FOR_CAGR,
+      minDays,
       symphonyDetails: []
     };
   }
@@ -356,7 +441,7 @@ export function calculateActiveCagr() {
     totalValue,
     symphonyCount: validSymphonies.length,
     excludedCount,
-    minDays: MIN_RUNNING_DAYS_FOR_CAGR,
+    minDays,
     symphonyDetails
   };
 }
@@ -430,11 +515,68 @@ function createActiveCagrTooltip(stats, anchorRect) {
       <b>Active CAGR</b> = Σ(Symphony CAGR × Weight)<br>
       Shows the "forward-looking power" of your current allocation based on each symphony's historical performance.
     </div>
-    <div style="margin-top:10px; padding: 8px; background: rgba(251, 191, 36, 0.15); border-left: 3px solid #fbbf24; border-radius: 4px; font-size: 11px; color: #fbbf24;">
-      <b>Note:</b> Only symphonies with >${stats.minDays} trading days are included.${stats.excludedCount > 0 ? ` ${stats.excludedCount} symphony${stats.excludedCount > 1 ? 'ies' : ''} excluded due to insufficient data.` : ''}
+    <div style="margin-top:10px; padding: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; font-size: 11px; display: flex; align-items: center; gap: 8px;">
+      <label style="color: #b0b8c9; white-space: nowrap;">Min trading days:</label>
+      <input id="composer-min-cagr-days-input" type="number" min="0" step="1" value="${stats.minDays}"
+        style="width: 60px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; padding: 3px 6px; font-size: 12px; text-align: center; outline: none;"
+      />
+      <span style="color: #b0b8c9; opacity: 0.7; font-size: 10px;">(0 = all)</span>
     </div>
+    ${stats.excludedCount > 0 ? `
+    <div style="margin-top:6px; padding: 6px 8px; background: rgba(251, 191, 36, 0.15); border-left: 3px solid #fbbf24; border-radius: 4px; font-size: 11px; color: #fbbf24;">
+      ${stats.excludedCount} symphony${stats.excludedCount > 1 ? 'ies' : ''} excluded (≤${stats.minDays} trading days).
+    </div>` : ''}
   `;
   document.body.appendChild(tooltip);
+
+  // Tooltip mouse events for sticky hover
+  let isOverTooltip = false;
+  tooltip.addEventListener('mouseenter', () => {
+    isOverTooltip = true;
+    tooltip.style.opacity = '1';
+  });
+  tooltip.addEventListener('mouseleave', () => {
+    isOverTooltip = false;
+    tooltip.style.opacity = '0';
+    setTimeout(() => {
+      if (!isOverTooltip) tooltip.remove();
+    }, 150);
+  });
+
+  // Wire up the min-days input
+  const minDaysInput = tooltip.querySelector('#composer-min-cagr-days-input');
+  if (minDaysInput) {
+    // Prevent tooltip from closing while interacting with input
+    minDaysInput.addEventListener('focus', () => { isOverTooltip = true; });
+    minDaysInput.addEventListener('click', (e) => { e.stopPropagation(); });
+
+    let debounceTimer = null;
+    minDaysInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        const newMin = Math.max(0, parseInt(minDaysInput.value, 10) || 0);
+        setMinCagrDays(newMin);
+        // Recalculate and refresh the display
+        const newStats = calculateActiveCagr(newMin);
+        if (newStats) {
+          injectActiveCagrWithTooltip(newStats);
+        }
+      }, 600);
+    });
+
+    // Also handle Enter key for immediate apply
+    minDaysInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        clearTimeout(debounceTimer);
+        const newMin = Math.max(0, parseInt(minDaysInput.value, 10) || 0);
+        setMinCagrDays(newMin);
+        const newStats = calculateActiveCagr(newMin);
+        if (newStats) {
+          injectActiveCagrWithTooltip(newStats);
+        }
+      }
+    });
+  }
 
   // Position tooltip near the anchor
   if (anchorRect) {
@@ -452,20 +594,6 @@ function createActiveCagrTooltip(stats, anchorRect) {
       }
     }, 0);
   }
-
-  // Tooltip mouse events for sticky hover
-  let isOverTooltip = false;
-  tooltip.addEventListener('mouseenter', () => {
-    isOverTooltip = true;
-    tooltip.style.opacity = '1';
-  });
-  tooltip.addEventListener('mouseleave', () => {
-    isOverTooltip = false;
-    tooltip.style.opacity = '0';
-    setTimeout(() => {
-      if (!isOverTooltip) tooltip.remove();
-    }, 150);
-  });
 
   // Show tooltip
   setTimeout(() => { tooltip.style.opacity = '1'; }, 0);
@@ -693,7 +821,7 @@ function injectCagrWithTooltip(stats) {
 
   function openTooltip() {
     if (tooltip) tooltip.remove();
-    tooltip = createCagrTooltip(stats, wrapper.getBoundingClientRect());
+    tooltip = createCagrTooltip(stats, wrapper.getBoundingClientRect(), valueDiv);
     tooltip.addEventListener('mouseenter', () => {
       isOverCagr = false;
       clearTimeout(closeTimeout);
@@ -866,8 +994,8 @@ export async function logPortfolioReturns() {
   const result = await chrome.storage.local.get(['enableYtdReturns']);
   const enableYtdReturns = result?.enableYtdReturns ?? true;
 
-  const { token, account } = await getTokenAndAccount();
-  const history = await fetchPortfolioHistory(account, token);
+  const { token, sessionId, account } = await getTokenAndAccount();
+  const history = await fetchPortfolioHistory(account, token, sessionId);
   if (!history || !history.epoch_ms || !history.series) {
     log("No portfolio history found");
     return;
@@ -878,7 +1006,7 @@ export async function logPortfolioReturns() {
   const years = getYearsBetween(firstDate, lastDate);
   const allTransfers = [];
   for (const year of years) {
-    const transfers = await fetchAchTransfers(account, token, year);
+    const transfers = await fetchAchTransfers(account, token, year, sessionId);
     allTransfers.push(...(Array.isArray(transfers) ? transfers : []));
   }
 
@@ -921,9 +1049,10 @@ export async function logPortfolioReturns() {
     if (history.series.length > 1) {
       const startValue = history.series[0];
       const endValue = history.series[history.series.length - 1];
-      // Use total ACH deposits (note: doesn't include wires/IRA rollovers)
-      const ytdAdjustment = getStoredYtdAdjustment();
-      const netDeposits = sumNetDeposits(allTransfers) + ytdAdjustment;
+      // Track ACH deposits separately from manual adjustments (wire/IRA)
+      const achOnlyDeposits = sumNetDeposits(allTransfers);
+      const cagrAdjustment = getStoredCagrAdjustment();
+      const netDeposits = achOnlyDeposits + cagrAdjustment;
 
       // Calculate years invested
       const msInYear = 365.25 * 24 * 60 * 60 * 1000;
@@ -944,14 +1073,17 @@ export async function logPortfolioReturns() {
           startValue,
           endValue,
           netDeposits,
-          hasAdjustment: ytdAdjustment !== 0
+          achOnlyDeposits,
+          hasAdjustment: cagrAdjustment !== 0
         };
 
         log("");
         log("[All-Time CAGR]");
         log(`  Start Value: $${startValue.toFixed(2)} (${firstDate.toISOString().slice(0,10)})`);
         log(`  End Value:   $${endValue.toFixed(2)} (${lastDate.toISOString().slice(0,10)})`);
-        log(`  Net Deposits (ACH + adjustment): $${netDeposits.toFixed(2)}`);
+        log(`  ACH Deposits: $${achOnlyDeposits.toFixed(2)}`);
+        log(`  CAGR Adjustment (wire/IRA): $${cagrAdjustment.toFixed(2)}`);
+        log(`  Net Deposits (total): $${netDeposits.toFixed(2)}`);
         log(`  Years Invested: ${yearsInvested.toFixed(2)}`);
         log(`  Total Return (Composer formula): ${(totalReturn * 100).toFixed(2)}%`);
         log(`  CAGR: ${(cagr * 100).toFixed(2)}%`);
