@@ -418,7 +418,12 @@ function renderTearsheetButton(factsheet) {
     const buildBtn = factsheet.querySelector(`#tearsheat-widget #build-${testType}-tearsheet-button`);
     setButtonEnabled(buildBtn, false);
     let originalText = buildBtn.innerText;
-    buildBtn.querySelector("span").innerHTML = `${originalText.replace("Build ", "Building ")} ...`;
+    buildBtn.querySelector("span").innerHTML = `
+          ${originalText.replace("Build ", "Building ")}
+          <div style="height: 27px; margin: -7px 10px;"><svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" class="h-full w-full" style="color: rgb(28, 32, 51);"><rect width="512" height="512" x="0" y="0" rx="0" fill="transparent" stroke="transparent" stroke-width="0" stroke-opacity="100%" paint-order="stroke"></rect><svg width="512px" height="512px" viewBox="0 0 24 24" fill="#1C2033" x="0" y="0" role="img" xmlns="http://www.w3.org/2000/svg" style="display: inline-block; vertical-align: middle;"><g fill="#1C2033"><circle cx="4" cy="12" r="3" fill="currentColor"><animate id="svgSpinners3DotsScale0" attributeName="r" begin="0;svgSpinners3DotsScale1.end-0.25s" dur="0.75s" values="3;.2;3"></animate></circle><circle cx="12" cy="12" r="3" fill="currentColor"><animate attributeName="r" begin="svgSpinners3DotsScale0.end-0.6s" dur="0.75s" values="3;.2;3"></animate></circle><circle cx="20" cy="12" r="3" fill="currentColor"><animate id="svgSpinners3DotsScale1" attributeName="r" begin="svgSpinners3DotsScale0.end-0.45s" dur="0.75s" values="3;.2;3"></animate></circle></g></svg></svg></div>
+        `;
+
+    factsheet?.querySelector(`.tearsheet-${testType}-link`)?.remove();
 
     let symphonyName = factsheet.querySelectorAll(".items-start")?.[0]?.innerText;
     const backtestData = await getSymphonyBacktest(window.active_factsheet_symphonyId);
@@ -443,18 +448,20 @@ function renderTearsheetButton(factsheet) {
       symphony = { ...symphony, ...data };
     }
 
+    let downloadLink;
     try {
-      const reportHtml = await getTearsheet(symphony, backtestData, testType);
-      const linkContainer = document.createElement('div');
-      linkContainer.classList.add(`tearsheet-${testType}-link`);
-      linkContainer.innerHTML = reportHtml;
-      buildBtn.insertAdjacentElement('afterend', linkContainer);
-    } catch (e) {
-      log("Error building tearsheet:", e);
-    } finally {
-      buildBtn.innerHTML = `<span class="flex items-center space-x-2">${originalText}</span>`;
-      setButtonEnabled(buildBtn, true);
+      downloadLink = await getTearsheet(symphony, backtestData, testType);
+    } catch {
+      downloadLink = `<span style="display: block; margin-left: 20px; margin-top: 6px;">(error generating ${testType} tearsheet)</span>`;
     }
+
+    const linkContainer = document.createElement('div');
+    linkContainer.classList.add(`tearsheet-${testType}-link`);
+    linkContainer.innerHTML = downloadLink;
+
+    buildBtn.innerHTML = `<span class="flex items-center space-x-2">${originalText}</span>`;
+    buildBtn.insertAdjacentElement('afterend', linkContainer);
+    setButtonEnabled(buildBtn, true);
   }
 
   const hasLiveData = factsheet.querySelector(".max-w-screen-2xl .flex-col")?.innerText?.includes("Live");
@@ -462,11 +469,22 @@ function renderTearsheetButton(factsheet) {
   container.id = "tearsheat-widget";
   container.className = "border border-panel-border rounded-md shadow-sm bg-panel-bg pt-4 pb-5 px-4 space-y-3";
 
-  container.appendChild(button("build-backtest-tearsheet-button", "Build Backtest Tearsheet", () => buildTearsheetButtonClickHandler("backtest"), "rounded-tl rounded-bl"));
+  const backtestArea = document.createElement('div');
+  backtestArea.style.display = 'flex';
+  backtestArea.appendChild(button("build-backtest-tearsheet-button", "Build Backtest Tearsheet", () => buildTearsheetButtonClickHandler("backtest"), "rounded-tl rounded-bl"));
+  container.appendChild(backtestArea);
+
   if (hasLiveData) {
-    container.appendChild(button("build-live-tearsheet-button", "Build Live Tearsheet", () => buildTearsheetButtonClickHandler("live"), "rounded-tl rounded-bl"));
+    const liveArea = document.createElement('div');
+    liveArea.style.display = 'flex';
+    liveArea.appendChild(button("build-live-tearsheet-button", "Build Live Tearsheet", () => buildTearsheetButtonClickHandler("live"), "rounded-tl rounded-bl"));
+    container.appendChild(liveArea);
   }
-  container.appendChild(button("build-oos-tearsheet-button", "Build OOS Tearsheet", () => buildTearsheetButtonClickHandler("oos"), "rounded-tl rounded-bl"));
+
+  const oosArea = document.createElement('div');
+  oosArea.style.display = 'flex';
+  oosArea.appendChild(button("build-oos-tearsheet-button", "Build OOS Tearsheet", () => buildTearsheetButtonClickHandler("oos"), "rounded-tl rounded-bl"));
+  container.appendChild(oosArea);
 
   graphNode.appendChild(container);
 }
