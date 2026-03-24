@@ -6,6 +6,13 @@ const columnOptions = [
   "5Y (ann.)",
   "6M",
   "All-time (ann.)",
+  // TODO: Add actual P/L calculations back in when there is a sane way to calculate total deposits and withdrawals
+  // right now the only way to get that is to fetch a paginated list of all deposits and withdrawals for the symphony
+  // then filter out the deposits and withdrawals
+  // Calculate actual P/L from current value vs initial deposit
+  // Simple P/L columns (from native Composer data)
+  // "Actual P/L $",
+  // "Actual P/L %",
   "Avg. Daily Return",
   "Avg. Down Month",
   "Avg. Drawdown Days",
@@ -81,6 +88,7 @@ const defaultSettings = {
   enableCmdClick: true,
   enableYtdReturns: true,
   enableKeepAlive: true,
+  enableColumnSorting: true,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -240,9 +248,18 @@ async function initEnableYtdReturns() {
 async function initEnableKeepAlive() {
   const enableKeepAliveCheckbox = document.getElementById('enableKeepAlive');
   enableKeepAliveCheckbox.checked = currentSettings.enableKeepAlive ?? true;
-  
+
   enableKeepAliveCheckbox.addEventListener('change', (e) => {
     saveSettings({ enableKeepAlive: e.target.checked });
+  });
+}
+
+async function initEnableColumnSorting() {
+  const enableColumnSortingCheckbox = document.getElementById('enableColumnSorting');
+  enableColumnSortingCheckbox.checked = currentSettings.enableColumnSorting ?? true;
+
+  enableColumnSortingCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableColumnSorting: e.target.checked });
   });
 }
 
@@ -287,6 +304,7 @@ async function initializePopup() {
   await initEnableCmdClick();
   await initEnableYtdReturns();
   await initEnableKeepAlive();
+  await initEnableColumnSorting();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }

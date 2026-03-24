@@ -70,19 +70,32 @@ function getAccount(auth) {
 
         let account;
 
-        while (!account) {
-          account = data.accounts.find(
-            (account) =>
-              account.account_uuid === localStorage.getItem("selectedAccount"),
-          );
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        // Try to find account from localStorage (with timeout to prevent infinite loop)
+        let attempts = 0;
+        const maxAttempts = 10; // 2 seconds max
+
+        while (!account && attempts < maxAttempts) {
+          const selectedAccount = localStorage.getItem("selectedAccount");
+          if (selectedAccount) {
+            account = data.accounts.find(
+              (acct) => acct.account_uuid === selectedAccount,
+            );
+          }
+          if (!account) {
+            attempts++;
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
         }
 
         if (account) {
+          log("Found account from localStorage:", account.account_uuid);
           resolve(account);
         } else {
-          // Fallback to detecting account type we should remove this at somepoint
-          // there is always a chance the localStorage variable will not be used
+          // Fallback: try to detect from UI buttons
+          const getElementsByText = (text, selector) => {
+            return Array.from(document.querySelectorAll(selector)).filter(el => el.textContent.includes(text));
+          };
+
           const isStocks = getElementsByText("Stocks", "button").length > 0;
           const isRoth = getElementsByText("Roth", "button").length > 0;
           const isTraditional = getElementsByText("Traditional", "button").length > 0;
@@ -99,12 +112,20 @@ function getAccount(auth) {
             account = data.accounts.filter((acct) =>
               acct.account_type.toLowerCase().includes("traditional"),
             )[0];
-          } else {
-            throw new Error(
-              "[composer-quant-tools]: Unable to detect account type",
-            );
           }
-          resolve(account);
+
+          // Final fallback: just use the first account
+          if (!account && data.accounts && data.accounts.length > 0) {
+            account = data.accounts[0];
+            log("Using first account as fallback:", account.account_uuid);
+          }
+
+          if (account) {
+            resolve(account);
+          } else {
+            log("No accounts found");
+            resolve(null);
+          }
         }
       } catch (error) {
         console.error(
