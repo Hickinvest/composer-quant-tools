@@ -531,8 +531,17 @@ async function handleOpenFactSheet(event) {
 }
 
 function initNavigation() {
+  if (window.location.pathname === "/portfolio" || 
+      window.location.pathname === "/watch" || 
+      window.location.pathname === "/discover" ||
+      isPathOnDetailsPage()) {
+    waitForFactsheet();
+  }
+
   window.navigation?.addEventListener("navigate", (event) => {
-    if (event.destination.url?.includes?.("/symphony/") && event.destination.url?.includes?.("/details")) {
+    const url = event.destination.url;
+    if (url?.includes("/portfolio") || url?.includes("/watch") || 
+        url?.includes("/discover") || (url?.includes("/symphony/") && url?.includes("/details"))) {
       waitForFactsheet();
     }
   });
