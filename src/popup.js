@@ -6,13 +6,12 @@ const columnOptions = [
   "5Y (ann.)",
   "6M",
   "All-time (ann.)",
-  // TODO: Add actual P/L calculations back in when there is a sane way to calculate total deposits and withdrawals
-  // right now the only way to get that is to fetch a paginated list of all deposits and withdrawals for the symphony
-  // then filter out the deposits and withdrawals
-  // Calculate actual P/L from current value vs initial deposit
+  // Alpha/Beta columns (CAPM metrics)
+  "Alpha vs SPY",
+  "Alpha vs QQQ",
   // Simple P/L columns (from native Composer data)
-  // "Actual P/L $",
-  // "Actual P/L %",
+  "P/L $",
+  "P/L %",
   "Avg. Daily Return",
   "Avg. Down Month",
   "Avg. Drawdown Days",
@@ -21,6 +20,8 @@ const columnOptions = [
   "Best Day",
   "Best Month",
   "Best Year",
+  "Beta vs SPY",
+  "Beta vs QQQ",
   "CAGR% (Annual Return)",
   "Calmar",
   "Daily Value-at-Risk",
@@ -37,6 +38,8 @@ const columnOptions = [
   "MTD",
   "Omega",
   "Prob. Sharpe Ratio",
+  "R² vs SPY",
+  "R² vs QQQ",
   "Recovery Factor",
   "Risk-Free Rate",
   "RoMaD",
@@ -89,6 +92,7 @@ const defaultSettings = {
   enableYtdReturns: true,
   enableKeepAlive: true,
   enableColumnSorting: true,
+  enableBenchmarkCalculations: true,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -263,6 +267,15 @@ async function initEnableColumnSorting() {
   });
 }
 
+async function initEnableBenchmarkCalculations() {
+  const enableBenchmarkCalculationsCheckbox = document.getElementById('enableBenchmarkCalculations');
+  enableBenchmarkCalculationsCheckbox.checked = currentSettings.enableBenchmarkCalculations ?? true;
+
+  enableBenchmarkCalculationsCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableBenchmarkCalculations: e.target.checked });
+  });
+}
+
 function positionTooltips() {
   const tooltips = document.querySelectorAll('.tooltip-container');
   tooltips.forEach(tooltip => {
@@ -305,6 +318,7 @@ async function initializePopup() {
   await initEnableYtdReturns();
   await initEnableKeepAlive();
   await initEnableColumnSorting();
+  await initEnableBenchmarkCalculations();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }

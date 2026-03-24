@@ -1,7 +1,7 @@
 import { logPortfolioReturns } from "./utils/portfolioReturns.js";
-import { startPortfolioTableInterval, updateTableRows, updateColumns, setupScrollListener, setExtraColumns } from "./utils/portfolioTable.js";
-import { setSortingEnabled } from "./utils/tableSortUtil.js";
+import { startPortfolioTableInterval, updateTableRows, updateColumns, setupScrollListener, setExtraColumns, setSortingEnabled } from "./utils/portfolioTable.js";
 import { log } from "./utils/logger.js";
+
 // Remove all table-specific logic from this file. Only keep portfolio orchestration and initialization.
 
 chrome.storage.local.get(["addedColumns", "enableColumnSorting"], function (result) {

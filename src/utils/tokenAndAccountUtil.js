@@ -1,27 +1,49 @@
 import { log } from "./logger.js";
 
-let token;
+// Module-level token state — supports both plain string and {token, sessionId} formats
+let tokenString;
+let sessionId;
 
 export function initTokenAndAccountUtil() {
   chrome.storage.local.get(["tokenInfo"], function (result) {
-    token = result.tokenInfo?.token;
-    log("Token loaded:", token);
+    const tokenInfo = result.tokenInfo;
+    if (tokenInfo) {
+      // Handle both token formats: plain string or {token, sessionId} object
+      if (typeof tokenInfo.token === "object" && tokenInfo.token !== null) {
+        tokenString = tokenInfo.token.token;
+        sessionId = tokenInfo.token.sessionId;
+      } else {
+        tokenString = tokenInfo.token;
+      }
+    }
+    log("Token loaded:", tokenString, "SessionId:", sessionId);
   });
 
   chrome.storage.onChanged.addListener(function (changes, namespace) {
     if (namespace === "local" && changes.tokenInfo) {
-      token = changes?.tokenInfo?.newValue?.token;
-      log("Token updated:", token);
+      const newValue = changes.tokenInfo.newValue;
+      if (newValue) {
+        if (typeof newValue.token === "object" && newValue.token !== null) {
+          tokenString = newValue.token.token;
+          sessionId = newValue.token.sessionId;
+        } else {
+          tokenString = newValue.token;
+        }
+      }
+      log("Token updated:", tokenString, "SessionId:", sessionId);
     }
   });
 }
 
+/**
+ * Poll until token is available. Returns {token, sessionId}.
+ */
 async function pollForToken() {
   return new Promise((resolve) => {
     const interval = setInterval(() => {
-      if (token) {
+      if (tokenString) {
         clearInterval(interval);
-        resolve(token);
+        resolve({ token: tokenString, sessionId });
       }
     }, 100);
   });
@@ -29,26 +51,35 @@ async function pollForToken() {
 
 let accountPromise;
 
-// getAccount will poll for selectedAccount every 200ms until it is found (So it could run indefinitely if the account is never found)
-function getAccount(token) {
+/**
+ * Fetch and resolve the active account.
+ * - Polls localStorage for selectedAccount with a max-attempts guard (10 attempts / 2s)
+ * - Falls back to UI button detection, then first-account fallback
+ * - Sends X-Session-Id header when sessionId is available
+ */
+function getAccount(auth) {
+  const { token, sessionId } = auth;
   if (!accountPromise) {
     accountPromise = new Promise(async (resolve) => {
       try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+        if (sessionId) {
+          headers["X-Session-Id"] = sessionId;
+        }
+
         const resp = await fetch(
           "https://stagehand-api.composer.trade/api/v1/accounts/list",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
+          { headers },
         );
         const data = await resp.json();
 
         let account;
 
-        // Try to find account from localStorage (with timeout to prevent infinite loop)
+        // Poll localStorage for selectedAccount with a max-attempts guard
         let attempts = 0;
-        const maxAttempts = 10; // 2 seconds max
+        const maxAttempts = 10; // 2 seconds max (10 * 200ms)
 
         while (!account && attempts < maxAttempts) {
           const selectedAccount = localStorage.getItem("selectedAccount");
@@ -67,14 +98,17 @@ function getAccount(token) {
           log("Found account from localStorage:", account.account_uuid);
           resolve(account);
         } else {
-          // Fallback: try to detect from UI buttons
+          // Fallback: detect account type from UI buttons
           const getElementsByText = (text, selector) => {
-            return Array.from(document.querySelectorAll(selector)).filter(el => el.textContent.includes(text));
+            return Array.from(document.querySelectorAll(selector)).filter(
+              (el) => el.textContent.includes(text),
+            );
           };
 
           const isStocks = getElementsByText("Stocks", "button").length > 0;
           const isRoth = getElementsByText("Roth", "button").length > 0;
-          const isTraditional = getElementsByText("Traditional", "button").length > 0;
+          const isTraditional =
+            getElementsByText("Traditional", "button").length > 0;
 
           if (isStocks) {
             account = data.accounts.filter((acct) =>
@@ -90,7 +124,7 @@ function getAccount(token) {
             )[0];
           }
 
-          // Final fallback: just use the first account
+          // Final fallback: use the first account rather than failing entirely
           if (!account && data.accounts && data.accounts.length > 0) {
             account = data.accounts[0];
             log("Using first account as fallback:", account.account_uuid);
@@ -113,47 +147,60 @@ function getAccount(token) {
 }
 
 function getAccountInfoFromLocalStorage() {
-  const selectedPortfolioType = localStorage.getItem('selectedPortfolioType');
-  const selectedPortfolioTypeData = selectedPortfolioType?.match(/\:[^\"]+\"[^\"]+\"/g)
-  const accountInfo = selectedPortfolioTypeData?.reduce((acc, item)=>{ 
-    const splitItem = item.split(' '); 
-    acc[splitItem[0].replace(':', '')] = splitItem.slice(1).join(' ').replace(/"/g, ''); 
-    return acc; 
-  }, {}) || {};
-  
+  const selectedPortfolioType = localStorage.getItem("selectedPortfolioType");
+  const selectedPortfolioTypeData = selectedPortfolioType?.match(
+    /\:[^\"]+\"[^\"]+\"/g,
+  );
+  const accountInfo =
+    selectedPortfolioTypeData?.reduce((acc, item) => {
+      const splitItem = item.split(" ");
+      acc[splitItem[0].replace(":", "")] = splitItem
+        .slice(1)
+        .join(" ")
+        .replace(/"/g, "");
+      return acc;
+    }, {}) || {};
+
   return accountInfo;
 }
 
+/**
+ * Returns a cached getTokenAndAccount() function.
+ * Cache is invalidated when the account changes or after 20 minutes.
+ * Always returns {token, sessionId, account}.
+ */
 function getTokenAndAccountUtil() {
   let lastAuthRequest;
-  let token;
+  let cachedAuth; // {token, sessionId}
   let account;
   let accountId;
+
   return async function getTokenAndAccount() {
     const accountInfo = getAccountInfoFromLocalStorage();
-    // get the latest account type every time and invalidate the cache if it has changed
-    const currentAccountId = accountInfo['account-id'];
+    const currentAccountId = accountInfo["account-id"];
 
-    // Check if we have a valid cached token and account (within 20 minutes)
-    const cacheValid = lastAuthRequest && (Date.now() - lastAuthRequest < 20 * 60 * 1000);
+    // Check if cache is still valid: same account and within 20 minutes
+    const cacheValid =
+      lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000;
 
-    if (token && accountId && cacheValid && currentAccountId === accountId) {
+    if (cachedAuth && accountId && cacheValid && currentAccountId === accountId) {
       return {
-        token,
-        account: {account_uuid: accountId},
+        token: cachedAuth.token,
+        sessionId: cachedAuth.sessionId,
+        account: { account_uuid: accountId },
       };
     } else {
-      token = await pollForToken();
+      cachedAuth = await pollForToken();
 
-      // Try to use currentAccountId from localStorage, otherwise fetch account
+      // Try localStorage account ID first, otherwise fetch via API
       if (currentAccountId) {
         accountId = currentAccountId;
-        account = {account_uuid: accountId};
+        account = { account_uuid: accountId };
         log("Using account from localStorage:", accountId);
       } else {
-        // Reset the promise so we can try again
+        // Reset promise so we can retry the fetch
         accountPromise = null;
-        account = await getAccount(token);
+        account = await getAccount(cachedAuth);
         accountId = account?.account_uuid;
       }
 
@@ -163,7 +210,8 @@ function getTokenAndAccountUtil() {
 
       lastAuthRequest = Date.now();
       return {
-        token,
+        token: cachedAuth.token,
+        sessionId: cachedAuth.sessionId,
         account,
       };
     }
