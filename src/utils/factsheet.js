@@ -552,13 +552,14 @@ function initNavigation() {
   if (window.location.pathname === "/portfolio" || 
       window.location.pathname === "/watch" || 
       window.location.pathname === "/discover" ||
+      window.location.pathname === "/drafts" ||
       isPathOnDetailsPage()) {
     waitForFactsheet();
   }
 
   window.navigation?.addEventListener("navigate", (event) => {
     const url = event.destination.url;
-    if (url?.includes("/portfolio") || url?.includes("/watch") || 
+    if (url?.includes("/portfolio") || url?.includes("/watch") ||  url?.includes("/drafts") ||
         url?.includes("/discover") || (url?.includes("/symphony/") && url?.includes("/details"))) {
       waitForFactsheet();
     }
@@ -566,7 +567,7 @@ function initNavigation() {
 }
 
 const collectSymphonyDataForFactsheet = () => {
-  document.body.addEventListener("click", handleOpenFactSheet);
+  document.body.addEventListener("click", handleOpenFactSheet, true);
   if (isPathOnDetailsPage()) {
     window.active_factsheet_symphonyId = window.location.pathname.split("/")[2];
     waitForFactsheet();
