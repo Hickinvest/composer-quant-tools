@@ -1,6 +1,7 @@
 // Table-specific logic for the portfolio page
 import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
 import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
+import { calculateActiveCagr, injectActiveCagrWithTooltip, injectActiveCagrLoadingPlaceholder } from "./portfolioReturns.js";
 import { log } from "./logger.js";
 import {
   setupNativeColumnListener,
@@ -71,6 +72,10 @@ export const startSymphonyPerformanceSync = async (mainTable) => {
   updateColumns(mainTable, extraColumns);
   setupNativeColumnListener(updateTableRows);
   setupTableObserver(); // Watch for Composer updates to re-apply our sort
+
+  // Show loading placeholder for Active CAGR while data loads
+  injectActiveCagrLoadingPlaceholder();
+
   const data = await getSymphonyPerformanceInfo({
     onSymphonyCallback: extendSymphonyStatsRow,
     skipCache: true,
@@ -91,6 +96,12 @@ export const startSymphonyPerformanceSync = async (mainTable) => {
   });
   updateTableRows();
   log("all symphony stats added", performanceData);
+
+  // Calculate and inject Active CAGR after all symphony stats are loaded
+  const activeCagrStats = calculateActiveCagr();
+  if (activeCagrStats) {
+    injectActiveCagrWithTooltip(activeCagrStats);
+  }
 };
 
 const TwelveHours = 12 * 60 * 60 * 1000; // this should only update once per day ish base on a normal user's usage. It could happen multiple times if multiple windows are open. or if the user is refreshing every 12 hours.
