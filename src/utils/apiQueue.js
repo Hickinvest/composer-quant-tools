@@ -4,7 +4,7 @@
  */
 
 import { log } from "./logger.js";
-import { getTokenAndAccount } from "./tokenAndAccountUtil.js";
+import { getTokenAndAccount, buildHeaders } from "./tokenAndAccountUtil.js";
 
 class ApiQueue {
   constructor(options = {}) {
@@ -159,16 +159,9 @@ class ApiQueue {
         // refetch the token as it is possible to have an expired token
         if(options.headers?.Authorization?.includes('Bearer')) {
           const { token, sessionId } = await getTokenAndAccount();
-          const headers = {
-            ...options.headers,
-            Authorization: `Bearer ${token}`,
-          };
-          if (sessionId) {
-            headers["X-Session-Id"] = sessionId;
-          }
           options = {
             ...options,
-            headers,
+            headers: { ...options.headers, ...buildHeaders(token, sessionId) },
           };
         }
 

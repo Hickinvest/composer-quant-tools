@@ -1,17 +1,13 @@
 import { log } from "./utils/logger.js";
 import { makeApiCallWithCache } from "./utils/apiUtils.js";
-import { getTokenAndAccount } from "./utils/tokenAndAccountUtil.js";
+import { getTokenAndAccount, buildHeaders } from "./utils/tokenAndAccountUtil.js";
 
 // Fetch portfolio history for an account
 export async function fetchPortfolioHistory(account, token, sessionId) {
   const url = `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/portfolio-history`;
-  const headers = { Authorization: `Bearer ${token}` };
-  if (sessionId) {
-    headers["X-Session-Id"] = sessionId;
-  }
   const data = await makeApiCallWithCache(
     url,
-    { headers },
+    { headers: buildHeaders(token, sessionId) },
     { cacheKey: `composerQuantTools-portfolio-history-${account.account_uuid}`, cacheTimeout: 60 * 60 * 1000 },
     `Get portfolio history for ${account.account_uuid}`
   );
@@ -21,13 +17,9 @@ export async function fetchPortfolioHistory(account, token, sessionId) {
 // Fetch ACH transfers for a given year
 export async function fetchAchTransfers(account, token, year, sessionId) {
   const url = `https://stagehand-api.composer.trade/api/v1/cash/accounts/${account.account_uuid}/ach-transfers?year=${year}`;
-  const headers = { Authorization: `Bearer ${token}` };
-  if (sessionId) {
-    headers["X-Session-Id"] = sessionId;
-  }
   const data = await makeApiCallWithCache(
     url,
-    { headers },
+    { headers: buildHeaders(token, sessionId) },
     { cacheKey: `composerQuantTools-ach-transfers-${account.account_uuid}-${year}`, cacheTimeout: 60 * 60 * 1000 },
     `Get ACH transfers for ${account.account_uuid} year ${year}`
   );
@@ -50,24 +42,12 @@ export async function getSymphonyDailyChange(
   const cacheKey = "composerQuantTools-" + symphonyId;
   const { token, sessionId, account } = await getTokenAndAccount();
   try {
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
-    if (sessionId) {
-      headers["X-Session-Id"] = sessionId;
-    }
     const symphonyStats = await makeApiCallWithCache(
       `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphonies/${symphonyId}`,
-      {
-        headers: headers,
-      },
-      {
-        cacheKey,
-        cacheTimeout,
-      },
+      { headers: buildHeaders(token, sessionId) },
+      { cacheKey, cacheTimeout },
       `Get symphony daily change for ${symphonyId}`
     );
-    // return symphonyStats;
     // 86400000 is 24 hours in milliseconds
     // there is a bug in the api where the epoch_ms is one day behind the actual date
     // TODO: fix this if they ever fix it in the api
@@ -91,14 +71,10 @@ export async function getSymphonyDailyChange(
 export async function getSymphonyActivityHistory(symphonyId, cacheTimeout = TwelveHours) {
   const { token, sessionId, account } = await getTokenAndAccount();
   const cacheKey = `composerQuantTools-symphony-activity-history-${symphonyId}`;
-  const headers = { Authorization: `Bearer ${token}` };
-  if (sessionId) {
-    headers["X-Session-Id"] = sessionId;
-  }
   const symphonyStats = await makeApiCallWithCache(
     // this limit is a hack to get all the activity history ... it sucks but it works
     `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphonies/${symphonyId}/activity-history?limit=9999999&offset=0`,
-    { headers },
+    { headers: buildHeaders(token, sessionId) },
     { cacheKey, cacheTimeout },
     `Get symphony activity history for ${symphonyId}`
   );
@@ -108,17 +84,9 @@ export async function getSymphonyActivityHistory(symphonyId, cacheTimeout = Twel
 export async function getAccountDeploys(status = "SUCCEEDED") {
   const { token, sessionId, account } = await getTokenAndAccount();
   try {
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
-    if (sessionId) {
-      headers["X-Session-Id"] = sessionId;
-    }
     const symphonyStats = await makeApiCallWithCache(
       `https://trading-api.composer.trade/api/v1/deploy/accounts/${account.account_uuid}/deploys?status=${status}`,
-      {
-        headers: headers,
-      },
+      { headers: buildHeaders(token, sessionId) },
       {
         cacheKey: `composerQuantTools-deploys-${status}`,
         cacheTimeout: TwelveHours,
@@ -143,17 +111,9 @@ export async function getAccountDeploys(status = "SUCCEEDED") {
 export async function getSymphonyStatsMeta() {
   const { token, sessionId, account } = await getTokenAndAccount();
   try {
-    const headers = {
-      Authorization: `Bearer ${token}`,
-    };
-    if (sessionId) {
-      headers["X-Session-Id"] = sessionId;
-    }
     const symphonyStats = await makeApiCallWithCache(
       `https://stagehand-api.composer.trade/api/v1/portfolio/accounts/${account.account_uuid}/symphony-stats-meta`,
-      {
-        headers: headers,
-      },
+      { headers: buildHeaders(token, sessionId) },
       {
         cacheKey: `composerQuantTools-symphony-stats-meta`,
         cacheTimeout: TwelveHours,
@@ -175,4 +135,4 @@ export async function getSymphonyStatsMeta() {
 }
 
 // Export getTokenAndAccount for convenience
-export { getTokenAndAccount }; 
+export { getTokenAndAccount };
