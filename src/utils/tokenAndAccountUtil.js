@@ -1,5 +1,12 @@
 import { log } from "./logger.js";
 
+export function buildHeaders(token, sessionId) {
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (sessionId) headers["X-Session-Id"] = sessionId;
+  return headers;
+}
+
 let tokenString;
 let sessionId;
 
@@ -51,22 +58,12 @@ function getAccount(auth) {
   const { token, sessionId } = auth;
   if (!accountPromise) {
     accountPromise = new Promise(async (resolve) => {
-      let data;
       try {
-        const headers = {
-          Authorization: `Bearer ${token}`,
-        };
-        if (sessionId) {
-          headers["X-Session-Id"] = sessionId;
-        }
-
         const resp = await fetch(
           "https://stagehand-api.composer.trade/api/v1/accounts/list",
-          {
-            headers: headers,
-          },
+          { headers: buildHeaders(token, sessionId) },
         );
-        data = await resp.json();
+        const data = await resp.json();
 
         let account;
 
@@ -128,10 +125,8 @@ function getAccount(auth) {
           }
         }
       } catch (error) {
-        console.error(
-          "[composer-quant-tools]: Unable to detect account type with:",
-          data || error
-        );
+        log("Unable to detect account type:", error);
+        resolve(null);
       }
     });
   }
@@ -141,12 +136,12 @@ function getAccount(auth) {
 function getAccountInfoFromLocalStorage() {
   const selectedPortfolioType = localStorage.getItem('selectedPortfolioType');
   const selectedPortfolioTypeData = selectedPortfolioType?.match(/\:[^\"]+\"[^\"]+\"/g)
-  const accountInfo = selectedPortfolioTypeData?.reduce((acc, item)=>{ 
-    const splitItem = item.split(' '); 
-    acc[splitItem[0].replace(':', '')] = splitItem.slice(1).join(' ').replace(/"/g, ''); 
-    return acc; 
+  const accountInfo = selectedPortfolioTypeData?.reduce((acc, item)=>{
+    const splitItem = item.split(' ');
+    acc[splitItem[0].replace(':', '')] = splitItem.slice(1).join(' ').replace(/"/g, '');
+    return acc;
   }, {}) || {};
-  
+
   return accountInfo;
 }
 
@@ -155,17 +150,15 @@ function getTokenAndAccountUtil() {
   let cachedAuth;
   let account;
   let accountId;
+
   return async function getTokenAndAccount() {
     const accountInfo = getAccountInfoFromLocalStorage();
-    // get the latest account type every time and invalidate the cache if it has changed
     const currentAccountId = accountInfo['account-id'];
 
-    if (
-      cachedAuth &&
-      currentAccountId && 
-      (currentAccountId !== accountId || (lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000))
-    ) {
-      accountId = currentAccountId;
+    // Check if cache is still valid: same account and within 20 minutes
+    const cacheValid = lastAuthRequest && Date.now() - lastAuthRequest < 20 * 60 * 1000;
+
+    if (cachedAuth && accountId && cacheValid && currentAccountId === accountId) {
       return {
         token: cachedAuth.token,
         sessionId: cachedAuth.sessionId,
@@ -177,8 +170,13 @@ function getTokenAndAccountUtil() {
         accountId = currentAccountId;
         account = {account_uuid: accountId};
       } else {
+        // Only reset the account promise if we don't have a valid account yet
+        // (allows retry after failure without re-fetching on every cache miss)
+        if (!accountId) {
+          accountPromise = null;
+        }
         account = await getAccount(cachedAuth);
-        accountId = account.account_uuid;
+        accountId = account?.account_uuid;
       }
       lastAuthRequest = Date.now();
       return {

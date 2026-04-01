@@ -22,7 +22,6 @@ const extensionId = getCurrentExtensionId();
 
 async function sendToken() {
   let token = await cli.getTemporaryToken();
-  // this actually gets an object with sessionId and token. Im not sure what to use the sessionId for.
   chrome.runtime.sendMessage(extensionId, { action: "onToken", token });
   setTimeout(sendToken, 1000 * 60 * 10); // refresh token every 10 minutes
 }
