@@ -1,7 +1,7 @@
 // Table-specific logic for the portfolio page
 import { performanceData, getSymphonyDailyChange, getAccountDeploys, getSymphonyStatsMeta, getSymphonyActivityHistory } from "../apiService.js";
 import { addGeneratedSymphonyStatsToSymphony, addQuantstatsToSymphony, addGeneratedSymphonyStatsToSymphonyWithModifiedDietz } from "./liveSymphonyPerformance.js";
-import { calculateActiveCagr, injectActiveCagrWithTooltip, injectActiveCagrLoadingPlaceholder } from "./portfolioReturns.js";
+import { calculateActiveCagr, injectActiveCagrWithTooltip, injectActiveCagrLoadingPlaceholder } from "./portfolioCAGR.js";
 import { log } from "./logger.js";
 import {
   setupNativeColumnListener,
@@ -73,8 +73,12 @@ export const startSymphonyPerformanceSync = async (mainTable) => {
   setupNativeColumnListener(updateTableRows);
   setupTableObserver(); // Watch for Composer updates to re-apply our sort
 
-  // Show loading placeholder for Active CAGR while data loads
-  injectActiveCagrLoadingPlaceholder();
+  // Show loading placeholder for Active CAGR while data loads (if enabled)
+  const cagrStorageResult = await chrome.storage.local.get(['enableCagrReturns']);
+  const enableCagrReturns = cagrStorageResult?.enableCagrReturns ?? false;
+  if (enableCagrReturns) {
+    injectActiveCagrLoadingPlaceholder();
+  }
 
   const data = await getSymphonyPerformanceInfo({
     onSymphonyCallback: extendSymphonyStatsRow,
@@ -97,10 +101,12 @@ export const startSymphonyPerformanceSync = async (mainTable) => {
   updateTableRows();
   log("all symphony stats added", performanceData);
 
-  // Calculate and inject Active CAGR after all symphony stats are loaded
-  const activeCagrStats = calculateActiveCagr();
-  if (activeCagrStats) {
-    injectActiveCagrWithTooltip(activeCagrStats);
+  // Calculate and inject Active CAGR after all symphony stats are loaded (if enabled)
+  if (enableCagrReturns) {
+    const activeCagrStats = calculateActiveCagr();
+    if (activeCagrStats) {
+      injectActiveCagrWithTooltip(activeCagrStats);
+    }
   }
 };
 
