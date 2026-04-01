@@ -87,6 +87,7 @@ const defaultSettings = {
   enableTooltips: true,
   enableCmdClick: true,
   enableYtdReturns: true,
+  enableCagrReturns: false,
   enableKeepAlive: true,
   enableColumnSorting: true,
 };
@@ -239,9 +240,18 @@ async function initEnableCmdClick() {
 async function initEnableYtdReturns() {
   const enableYtdReturnsCheckbox = document.getElementById('enableYtdReturns');
   enableYtdReturnsCheckbox.checked = currentSettings.enableYtdReturns ?? true;
-  
+
   enableYtdReturnsCheckbox.addEventListener('change', (e) => {
     saveSettings({ enableYtdReturns: e.target.checked });
+  });
+}
+
+async function initEnableCagrReturns() {
+  const enableCagrReturnsCheckbox = document.getElementById('enableCagrReturns');
+  enableCagrReturnsCheckbox.checked = currentSettings.enableCagrReturns ?? false;
+
+  enableCagrReturnsCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableCagrReturns: e.target.checked });
   });
 }
 
@@ -303,6 +313,7 @@ async function initializePopup() {
   await initEnableTooltips();
   await initEnableCmdClick();
   await initEnableYtdReturns();
+  await initEnableCagrReturns();
   await initEnableKeepAlive();
   await initEnableColumnSorting();
   positionTooltips(); // Initial positioning

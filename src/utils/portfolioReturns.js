@@ -1,9 +1,27 @@
 import { getTokenAndAccount, fetchPortfolioHistory, fetchAchTransfers } from "../apiService.js";
 import { log } from "./logger.js";
+import {
+  sumNetDeposits,
+  findMetricBanner,
+  injectCagrWithTooltip,
+  calculateCagrStats,
+  calculateActiveCagr,
+  injectActiveCagrWithTooltip,
+  injectActiveCagrLoadingPlaceholder,
+  getMinCagrDays,
+  setMinCagrDays,
+} from "./portfolioCAGR.js";
+
+export {
+  calculateActiveCagr,
+  injectActiveCagrWithTooltip,
+  injectActiveCagrLoadingPlaceholder,
+  getMinCagrDays,
+  setMinCagrDays,
+};
 
 const YTD_ADJUSTMENT_KEY = 'composer-returns-ytd-adjustment';
 
-// Helper to get all years between two dates (inclusive)
 function getYearsBetween(startDate, endDate) {
   const years = [];
   let year = startDate.getFullYear();
@@ -13,22 +31,6 @@ function getYearsBetween(startDate, endDate) {
     year++;
   }
   return years;
-}
-
-function sumNetDeposits(transfers, upToDate = null, fromDate = null) {
-  return transfers
-    .filter(t => t.status === "COMPLETE")
-    .filter(t => {
-      const created = new Date(t.created_at);
-      if (upToDate && created > upToDate) return false;
-      if (fromDate && created < fromDate) return false;
-      return true;
-    })
-    .reduce((sum, t) => {
-      // INCOMING is positive, OUTGOING is negative
-      const amt = t.direction === "INCOMING" ? Math.abs(t.amount) : -Math.abs(t.amount);
-      return sum + amt;
-    }, 0);
 }
 
 function getStoredYtdAdjustment() {
@@ -41,7 +43,6 @@ function setStoredYtdAdjustment(val) {
 }
 
 function createYtdReturnsTooltip(stats, anchorRect, ytdReturnElement) {
-  // Remove any existing tooltip
   const existing = document.getElementById('composer-returns-tooltip');
   if (existing) existing.remove();
 
@@ -61,7 +62,6 @@ function createYtdReturnsTooltip(stats, anchorRect, ytdReturnElement) {
   tooltip.style.transition = 'opacity 0.15s';
   tooltip.style.opacity = '0';
 
-  // Inject grid style for stats if not already present
   if (!document.getElementById('composer-returns-tooltip-grid-style')) {
     const style = document.createElement('style');
     style.id = 'composer-returns-tooltip-grid-style';
@@ -133,13 +133,11 @@ function createYtdReturnsTooltip(stats, anchorRect, ytdReturnElement) {
     }
   }, 0);
 
-  // Position tooltip near the anchor
   if (anchorRect) {
     tooltip.style.left = `${anchorRect.right + 12}px`;
     tooltip.style.top = `${anchorRect.top - 8}px`;
   }
 
-  // Tooltip mouse events for sticky hover
   let isOverTooltip = false;
   tooltip.addEventListener('mouseenter', () => {
     isOverTooltip = true;
@@ -153,10 +151,19 @@ function createYtdReturnsTooltip(stats, anchorRect, ytdReturnElement) {
     }, 150);
   });
 
-  // Show tooltip
   setTimeout(() => { tooltip.style.opacity = '1'; }, 0);
 
   return tooltip;
+}
+
+function getLastNativeElement(grid) {
+  const children = Array.from(grid.children);
+  for (let i = children.length - 1; i >= 0; i--) {
+    if (!children[i].classList.contains('composer-returns-stat')) {
+      return children[i];
+    }
+  }
+  return null;
 }
 
 function injectYtdReturnWithTooltip({
@@ -165,15 +172,19 @@ function injectYtdReturnWithTooltip({
 }) {
   if (ytdReturn === undefined) return;
 
-  const banner = document.querySelector('.metric-banner');
-  if (!banner) return;
-  const grid = banner.querySelector('.grid');
-  if (!grid) return;
+  const banner = findMetricBanner();
+  if (!banner) {
+    log('Could not find metric banner for YTD injection');
+    return;
+  }
+  const grid = banner.classList.contains('grid') ? banner : banner.querySelector('.grid');
+  if (!grid) {
+    log('Could not find grid in metric banner for YTD');
+    return;
+  }
 
-  // Remove previous injected stats if any
-  grid.querySelectorAll('.composer-returns-stat').forEach(el => el.remove());
+  grid.querySelectorAll('.composer-returns-stat:not(.composer-cagr-stat)').forEach(el => el.remove());
 
-  // Create the YTD Return metric
   const wrapper = document.createElement('div');
   wrapper.className = 'md:first:pl-2 composer-returns-stat';
   wrapper.style.cursor = 'pointer';
@@ -225,22 +236,40 @@ function injectYtdReturnWithTooltip({
     }, 150);
   });
 
-  grid.appendChild(wrapper);
+  const lastNative = getLastNativeElement(grid);
+  const existingCagr = grid.querySelector('.composer-cagr-stat');
+  if (existingCagr) {
+    grid.insertBefore(wrapper, existingCagr);
+  } else if (lastNative && lastNative.nextSibling) {
+    grid.insertBefore(wrapper, lastNative.nextSibling);
+  } else {
+    grid.appendChild(wrapper);
+  }
 }
 
-async function waitForMetricBannerAndInject(stats, timeoutMs = 10000) {
+async function waitForMetricBannerAndInject(ytdStats, cagrStats, timeoutMs = 10000) {
   const start = Date.now();
   return new Promise((resolve) => {
     function check() {
-      const banner = document.querySelector('.metric-banner');
-      const grid = banner?.querySelector('.grid');
-      if (banner && grid) {
-        injectYtdReturnWithTooltip(stats);
-        resolve(true);
+      const banner = findMetricBanner();
+      const grid = banner ? (banner.classList.contains('grid') ? banner : banner.querySelector('.grid')) : null;
+      const hasCumulativeReturn = grid && Array.from(grid.children).some(
+        child => child.textContent.includes('Cumulative Return')
+      );
+      if (banner && grid && hasCumulativeReturn) {
+        setTimeout(() => {
+          if (ytdStats) {
+            injectYtdReturnWithTooltip(ytdStats);
+          }
+          if (cagrStats) {
+            injectCagrWithTooltip(cagrStats);
+          }
+          resolve(true);
+        }, 100);
       } else if (Date.now() - start < timeoutMs) {
         setTimeout(check, 100);
       } else {
-        log('Warning: .metric-banner or .grid not found after waiting.');
+        log('Warning: metric banner or grid not found after waiting. Check findMetricBanner() selectors.');
         resolve(false);
       }
     }
@@ -249,9 +278,11 @@ async function waitForMetricBannerAndInject(stats, timeoutMs = 10000) {
 }
 
 export async function logPortfolioReturns() {
-  // Check if YTD returns are enabled
-  const result = await chrome.storage.local.get(['enableYtdReturns']);
+  log('logPortfolioReturns() called - starting portfolio returns calculation');
+
+  const result = await chrome.storage.local.get(['enableYtdReturns', 'enableCagrReturns']);
   const enableYtdReturns = result?.enableYtdReturns ?? true;
+  const enableCagrReturns = result?.enableCagrReturns ?? false;
 
   const { token, sessionId, account } = await getTokenAndAccount();
   const history = await fetchPortfolioHistory(account, token, sessionId);
@@ -259,7 +290,7 @@ export async function logPortfolioReturns() {
     log("No portfolio history found");
     return;
   }
-  // Find all years needed for ACH transfers
+
   const firstDate = new Date(history.epoch_ms[0]);
   const lastDate = new Date(history.epoch_ms[history.epoch_ms.length - 1]);
   const years = getYearsBetween(firstDate, lastDate);
@@ -271,12 +302,10 @@ export async function logPortfolioReturns() {
 
   let ytdStats = null;
   if (enableYtdReturns) {
-    // --- YTD Return ---
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
-    // Find the first trading day of the year in history
     let ytdStartIdx = history.epoch_ms.findIndex(ts => ts >= yearStart.getTime());
-    if (ytdStartIdx === -1) ytdStartIdx = 0; // fallback
+    if (ytdStartIdx === -1) ytdStartIdx = 0;
     const ytdStartValue = history.series[ytdStartIdx];
     const ytdStartDate = new Date(history.epoch_ms[ytdStartIdx]);
     const netYtdDeposits = sumNetDeposits(allTransfers, lastDate, ytdStartDate);
@@ -302,8 +331,12 @@ export async function logPortfolioReturns() {
   }
   log("------------------------------------");
 
-  // Wait for metric banner and inject into UI
-  if (ytdStats) {
-    await waitForMetricBannerAndInject(ytdStats);
+  let cagrStats = null;
+  if (enableCagrReturns) {
+    cagrStats = calculateCagrStats(history, allTransfers);
   }
-} 
+
+  if (ytdStats || cagrStats) {
+    await waitForMetricBannerAndInject(ytdStats, cagrStats);
+  }
+}
