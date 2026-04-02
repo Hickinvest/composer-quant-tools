@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 // Set the download directory for pyodide
 const pyodideDownloadDir = path.resolve(__dirname, '../src/lib/pyodide');
 const jsLibDownloadDir = path.resolve(__dirname, '../src/lib/jslib');
+const quantstatsJsDownloadDir = path.resolve(__dirname, '../src/lib/jslib/quantstats-js/src');
 
 
 
@@ -136,5 +137,14 @@ function downloadResources(urls, downloadDir) {
   });
 }
 
+const quantstatsJsSrcVersion = '2.5.3';
+const quantstatsJsSrc = [
+  'stats.js',
+  'utils.js',
+  'plots.js',
+  'reports.js',
+].map(file => `https://cdn.jsdelivr.net/npm/quantstats-js@${quantstatsJsSrcVersion}/src/${file}`);
+
 downloadResources(pyodideUrls, pyodideDownloadDir);
 downloadResources(jsLib, jsLibDownloadDir);
+downloadResources(quantstatsJsSrc, quantstatsJsDownloadDir);
