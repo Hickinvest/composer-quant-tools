@@ -97,6 +97,8 @@ function addExtraMetrics(metrics, returns, dates) {
 }
 
 async function getQuantStats(symphony, series_data) {
+  const t0 = performance.now();
+
   if (series_data.epoch_ms.length < 2) {
     return {
       error: `Symphony_name:${symphony.name} Symphony_id:${symphony.id} Not enough data to calculate QuantStats`,
@@ -111,6 +113,7 @@ async function getQuantStats(symphony, series_data) {
     const returnsWithDates = { values: returns, index: dates };
 
     let quantstats_metrics = {};
+    const t1 = performance.now();
     try {
       const raw = calculateComprehensiveMetrics(returnsWithDates, 0, 'full');
       quantstats_metrics = remapMetrics(raw);
@@ -119,6 +122,7 @@ async function getQuantStats(symphony, series_data) {
       console.error('QuantStats metrics error:', e);
       quantstats_metrics = {};
     }
+    console.log(`[QuantStats] metrics (${returns.length} days): ${(performance.now() - t1).toFixed(1)}ms`);
 
     let quantstats_months = {};
     try {
@@ -138,7 +142,9 @@ async function getQuantStats(symphony, series_data) {
       console.error('QuantStats drawdown details error:', e);
     }
 
-    return JSON.stringify({ quantstats_metrics, quantstats_months, quantstats_drawdown_details });
+    const result = JSON.stringify({ quantstats_metrics, quantstats_months, quantstats_drawdown_details });
+    console.log(`[QuantStats] total for "${symphony.name}" (${returns.length} days): ${(performance.now() - t0).toFixed(1)}ms`);
+    return result;
   } catch (err) {
     console.error(err);
     return { error: 'An error occurred: ' + err.message };
