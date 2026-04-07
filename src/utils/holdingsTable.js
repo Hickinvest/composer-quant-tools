@@ -78,9 +78,10 @@ function updatePercentChangeColumn(holdingsTable) {
     th.textContent = "Today's Change";
     
     const headers = Array.from(thead.querySelectorAll('th'));
-    const allocationHeader = headers.find(h => h.textContent.includes('Current Allocation'));
-    if (allocationHeader) {
-      allocationHeader.after(th);
+    if (headers.length >= 5) {
+      headers[4].after(th);
+    } else if (headers.length > 0) {
+      thead.insertBefore(th, headers[headers.length - 1]);
     } else {
       thead.appendChild(th);
     }
@@ -95,10 +96,11 @@ function updatePercentChangeColumn(holdingsTable) {
       td.className = 'py-3 w-40 text-left border-b border-data-table-border extra-column';
       td.dataset.columnId = "Today's Change";
       
-      const allocationCell = cells.find(c => c.textContent.includes('%') && !c.querySelector('div'));
-      if (allocationCell) {
-        allocationCell.after(td);
+      if (cells.length >= 5) {
+        cells[4].after(td);
       } else if (cells.length > 0) {
+        row.insertBefore(td, cells[cells.length - 1]);
+      } else {
         row.appendChild(td);
       }
     }
