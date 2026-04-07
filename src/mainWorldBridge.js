@@ -57,8 +57,6 @@ window.addEventListener('message', async function(event) {
 
 // Backtest Interceptor (runs in MAIN world)
 (function() {
-    console.log("[composer-quant-tools] Initializing Main World Interceptor...");
-
     // 1. Intercept Fetch
     const originalFetch = window.fetch;
     window.fetch = async function(...args) {
@@ -132,9 +130,6 @@ window.addEventListener('message', async function(event) {
         }
 
         const symphonyId = path.split('/')[4];
-        if (symphonyId) {
-            console.log('Intercepted backtest data for symphony:', symphonyId);
-        }
 
         // Send to Content Script
         window.postMessage({
@@ -148,8 +143,6 @@ window.addEventListener('message', async function(event) {
 
     function handleQuotesInterception(data, url, type) {
         if (!data || typeof data !== 'object') return;
-
-        console.log('[composer-quant-tools] Intercepted quotes data, keys:', Object.keys(data));
 
         // Send to Content Script
         window.postMessage({

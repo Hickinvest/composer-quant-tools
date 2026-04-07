@@ -1,4 +1,3 @@
-import { log } from "./logger.js";
 
 let cachedQuotes = {};
 let currentSymphonyId = null;
@@ -157,7 +156,6 @@ function initHoldingsTable() {
     if (newSymphonyId && newSymphonyId !== currentSymphonyId) {
       currentSymphonyId = newSymphonyId;
       cachedQuotes = {};
-      log('[holdingsTable] Symphony changed, clearing cache:', currentSymphonyId);
     }
   };
 
@@ -166,7 +164,6 @@ function initHoldingsTable() {
   window.addEventListener('message', (event) => {
     if (event.data?.type === 'QUOTES_DATA_INTERCEPTED') {
       if (event.data.data && typeof event.data.data === 'object') {
-        log('[holdingsTable] Received quotes, keys:', Object.keys(event.data.data));
         cachedQuotes = { ...cachedQuotes, ...event.data.data };
         refreshTable();
         setTimeout(refreshTable, 500);
