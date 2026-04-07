@@ -1,6 +1,7 @@
 import { initTokenAndAccountUtil } from './utils/tokenAndAccountUtil.js';
 import { initFactsheet } from './utils/factsheet.js';
 import { initPortfolio } from './portfolio.js';
+import { initHoldingsTableModule } from './utils/holdingsTable.js';
 
 export function main() {
   // Listen for messages from the MAIN world
@@ -72,6 +73,7 @@ export function main() {
   initTokenAndAccountUtil();
   initFactsheet();
   initPortfolio();
+  initHoldingsTableModule();
   
   // Signal that init is ready
   window.postMessage({ type: 'INIT_READY' }, '*');
