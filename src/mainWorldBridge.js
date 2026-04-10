@@ -57,8 +57,6 @@ window.addEventListener('message', async function(event) {
 
 // Backtest Interceptor (runs in MAIN world)
 (function() {
-    console.log("[composer-quant-tools] Initializing Main World Interceptor...");
-
     // 1. Intercept Fetch
     const originalFetch = window.fetch;
     window.fetch = async function(...args) {
@@ -66,12 +64,22 @@ window.addEventListener('message', async function(event) {
         const response = await originalFetch.apply(this, args);
 
         const isBacktest = url.includes('/backtest');
+        const isQuotes = url.includes('/public/quotes');
 
         if (isBacktest && response.status === 200) {
             const clonedResponse = response.clone();
             clonedResponse.json().then(data => {
                 if (data?.stats) {
                     handleInterception(data, url, 'fetch');
+                }
+            }).catch(() => {});
+        }
+
+        if (isQuotes && response.status === 200) {
+            const clonedResponse = response.clone();
+            clonedResponse.json().then(data => {
+                if (data && typeof data === 'object') {
+                    handleQuotesInterception(data, url, 'fetch');
                 }
             }).catch(() => {});
         }
@@ -90,11 +98,22 @@ window.addEventListener('message', async function(event) {
     XMLHttpRequest.prototype.send = function() {
         this.addEventListener('load', function() {
             const isBacktest = this._url?.includes('/backtest');
+            const isQuotes = this._url?.includes('/public/quotes');
+            
             if (this.status === 200 && isBacktest) {
                 try {
                     const data = JSON.parse(this.responseText);
                     if (data?.stats) {
                         handleInterception(data, this._url, 'XHR');
+                    }
+                } catch (e) {}
+            }
+            
+            if (this.status === 200 && isQuotes) {
+                try {
+                    const data = JSON.parse(this.responseText);
+                    if (data && typeof data === 'object') {
+                        handleQuotesInterception(data, this._url, 'XHR');
                     }
                 } catch (e) {}
             }
@@ -111,13 +130,23 @@ window.addEventListener('message', async function(event) {
         }
 
         const symphonyId = path.split('/')[4];
-        if (symphonyId) {
-            console.log('Intercepted backtest data for symphony:', symphonyId);
-        }
 
         // Send to Content Script
         window.postMessage({
             type: 'BACKTEST_DATA_INTERCEPTED',
+            data: data,
+            url: url,
+            source: type,
+            timestamp: Date.now()
+        }, '*');
+    }
+
+    function handleQuotesInterception(data, url, type) {
+        if (!data || typeof data !== 'object') return;
+
+        // Send to Content Script
+        window.postMessage({
+            type: 'QUOTES_DATA_INTERCEPTED',
             data: data,
             url: url,
             source: type,
