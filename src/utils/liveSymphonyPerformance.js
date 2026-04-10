@@ -131,9 +131,11 @@ export function buildSymphonyPercentages(symphony, symphonyDeploys) {
 export async function addQuantstatsToSymphony(symphony, accountDeploys) {
   //create a promise that resolves when the stats are added
   return new Promise((resolve, reject) => {
+    const t0 = performance.now();
     chrome.runtime.sendMessage(
       { action: "getQuantStats", symphony, accountDeploys },
       (response) => {
+        console.log(`[QuantStats] end-to-end for "${symphony.name}": ${(performance.now() - t0).toFixed(1)}ms`);
         if (response?.error) {
           log(response?.error);
           reject(response.error);
