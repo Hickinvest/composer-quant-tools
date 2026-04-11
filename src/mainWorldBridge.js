@@ -1,6 +1,13 @@
 // Bridge script that runs in the MAIN world to access React internals
-window.addEventListener('message', async function(event) {
+// This file focuses on extracting React props from DOM elements.
+// Network interception logic has been moved to modular interceptors in src/utils/
+
+window.addEventListener('message', function(event) {
     // Only handle messages requesting React props
+    if (event.data.type === 'SETTINGS_UPDATED') {
+        extensionSettings = { ...extensionSettings, ...event.data.settings };
+    }
+
     if (event.data.type === 'GET_REACT_PROPS') {
         const element = event.data.element;
         const propSelector = event.data.propSelector; // e.g. "children.props"
@@ -54,103 +61,3 @@ window.addEventListener('message', async function(event) {
         }
     }
 });
-
-// Backtest Interceptor (runs in MAIN world)
-(function() {
-    // 1. Intercept Fetch
-    const originalFetch = window.fetch;
-    window.fetch = async function(...args) {
-        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-        const response = await originalFetch.apply(this, args);
-
-        const isBacktest = url.includes('/backtest');
-        const isQuotes = url.includes('/public/quotes');
-
-        if (isBacktest && response.status === 200) {
-            const clonedResponse = response.clone();
-            clonedResponse.json().then(data => {
-                if (data?.stats) {
-                    handleInterception(data, url, 'fetch');
-                }
-            }).catch(() => {});
-        }
-
-        if (isQuotes && response.status === 200) {
-            const clonedResponse = response.clone();
-            clonedResponse.json().then(data => {
-                if (data && typeof data === 'object') {
-                    handleQuotesInterception(data, url, 'fetch');
-                }
-            }).catch(() => {});
-        }
-
-        return response;
-    };
-
-    // 2. Intercept XHR
-    const originalOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(method, url) {
-        this._url = url;
-        originalOpen.apply(this, arguments);
-    };
-
-    const originalSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function() {
-        this.addEventListener('load', function() {
-            const isBacktest = this._url?.includes('/backtest');
-            const isQuotes = this._url?.includes('/public/quotes');
-            
-            if (this.status === 200 && isBacktest) {
-                try {
-                    const data = JSON.parse(this.responseText);
-                    if (data?.stats) {
-                        handleInterception(data, this._url, 'XHR');
-                    }
-                } catch (e) {}
-            }
-            
-            if (this.status === 200 && isQuotes) {
-                try {
-                    const data = JSON.parse(this.responseText);
-                    if (data && typeof data === 'object') {
-                        handleQuotesInterception(data, this._url, 'XHR');
-                    }
-                } catch (e) {}
-            }
-        });
-        originalSend.apply(this, arguments);
-    };
-
-    function handleInterception(data, url, type) {
-        if (!data || !data.stats) return;
-
-        const path = new URL(url).pathname;
-        if (!path.endsWith('/backtest')) {
-            return;
-        }
-
-        const symphonyId = path.split('/')[4];
-
-        // Send to Content Script
-        window.postMessage({
-            type: 'BACKTEST_DATA_INTERCEPTED',
-            data: data,
-            url: url,
-            source: type,
-            timestamp: Date.now()
-        }, '*');
-    }
-
-    function handleQuotesInterception(data, url, type) {
-        if (!data || typeof data !== 'object') return;
-
-        // Send to Content Script
-        window.postMessage({
-            type: 'QUOTES_DATA_INTERCEPTED',
-            data: data,
-            url: url,
-            source: type,
-            timestamp: Date.now()
-        }, '*');
-    }
-})();

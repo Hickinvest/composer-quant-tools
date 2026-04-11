@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Composer Quant Tools",
   "description": "Utility extension that makes working with Composer Symphonies easier",
-  "version": "1.14.1",
+  "version": "1.15.0",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -38,6 +38,9 @@
         "fetchAuth.js",
         "lib/jslib/lodash.min.js",
         "utils/storageAccess.js",
+        "utils/interceptorCore.js",
+        "utils/symphonyStripper.js",
+        "utils/performanceInterceptor.js",
         "utils/liveTickerTooltip.js",
         "utils/logarithmicCharts.js",
         "mainWorldBridge.js"
