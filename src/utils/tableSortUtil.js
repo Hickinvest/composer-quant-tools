@@ -419,6 +419,16 @@ export function handleColumnSort(columnKey) {
     currentSortDirection = 'desc';
   }
   currentSortColumn = columnKey;
+
+  // Clear native sort indicators (manually reset Composer's SVG classes)
+  const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
+  if (mainTable) {
+    mainTable.querySelectorAll('thead th:not(.extra-column) span[class*="text-dark"]').forEach(arrowSpan => {
+      arrowSpan.classList.add('text-dark/30');
+      arrowSpan.classList.remove('text-dark');
+    });
+  }
+
   sortTableByColumn(columnKey, currentSortDirection);
 }
 
@@ -430,24 +440,24 @@ export function updateSortIndicators(activeColumn, direction) {
   // Update all extra column arrows
   mainTable.querySelectorAll('thead .extra-column').forEach(th => {
     const columnKey = th.dataset.key;
-    let indicator = th.querySelector('.sort-indicator');
+    const up = th.querySelector('.arrow-up');
+    const down = th.querySelector('.arrow-down');
 
-    if (!indicator) {
-      indicator = document.createElement('span');
-      indicator.className = 'sort-indicator';
-      indicator.style.marginLeft = '4px';
-      indicator.style.fontSize = '10px';
-      th.appendChild(indicator);
-    }
+    if (!up || !down) return;
 
-    if (columnKey === activeColumn) {
-      // Active column - solid arrow
-      indicator.textContent = direction === 'asc' ? '\u25B2' : '\u25BC';
-      indicator.style.opacity = '1';
+    if (activeColumn && columnKey === activeColumn) {
+      // Active column
+      if (direction === 'asc') {
+        up.classList.replace('text-dark/30', 'text-dark');
+        down.classList.replace('text-dark', 'text-dark/30');
+      } else {
+        up.classList.replace('text-dark', 'text-dark/30');
+        down.classList.replace('text-dark/30', 'text-dark');
+      }
     } else {
-      // Inactive column - faded arrow
-      indicator.textContent = '\u25BC';
-      indicator.style.opacity = '0.3';
+      // Inactive column - both arrows faded
+      up.classList.replace('text-dark', 'text-dark/30');
+      down.classList.replace('text-dark', 'text-dark/30');
     }
   });
 }
@@ -458,19 +468,11 @@ export function updateAllColumnArrows() {
   if (!mainTable) return;
 
   mainTable.querySelectorAll('thead .extra-column').forEach(th => {
-    let indicator = th.querySelector('.sort-indicator');
+    const up = th.querySelector('.arrow-up');
+    const down = th.querySelector('.arrow-down');
 
-    if (!indicator) {
-      indicator = document.createElement('span');
-      indicator.className = 'sort-indicator';
-      indicator.style.marginLeft = '4px';
-      indicator.style.fontSize = '10px';
-      th.appendChild(indicator);
-    }
-
-    // All faded
-    indicator.textContent = '\u25BC';
-    indicator.style.opacity = '0.3';
+    if (up) up.classList.replace('text-dark', 'text-dark/30');
+    if (down) down.classList.replace('text-dark', 'text-dark/30');
   });
 }
 
@@ -478,19 +480,20 @@ export function updateAllColumnArrows() {
 export function addSortIndicatorToHeader(th, columnKey) {
   if (!sortingEnabled) return;
 
-  const indicator = document.createElement('span');
-  indicator.className = 'sort-indicator';
-  indicator.style.marginLeft = '4px';
-  indicator.style.fontSize = '10px';
+  const up = th.querySelector('.arrow-up');
+  const down = th.querySelector('.arrow-down');
+  if (!up || !down) return;
 
-  if (currentSortColumn === columnKey) {
-    // Active column - solid arrow
-    indicator.textContent = currentSortDirection === 'asc' ? '\u25B2' : '\u25BC';
-    indicator.style.opacity = '1';
+  if (getCurrentSortColumn() === columnKey) {
+    if (getCurrentSortDirection() === 'asc') {
+      up.classList.replace('text-dark/30', 'text-dark');
+      down.classList.replace('text-dark', 'text-dark/30');
+    } else {
+      up.classList.replace('text-dark', 'text-dark/30');
+      down.classList.replace('text-dark/30', 'text-dark');
+    }
   } else {
-    // Inactive column - faded arrow
-    indicator.textContent = '\u25BC';
-    indicator.style.opacity = '0.3';
+    up.classList.replace('text-dark', 'text-dark/30');
+    down.classList.replace('text-dark', 'text-dark/30');
   }
-  th.appendChild(indicator);
 }

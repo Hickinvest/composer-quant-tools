@@ -237,12 +237,17 @@ export function updateRowStats(row, addedStats) {
     let cell = row.querySelector(`.extra-column[data-key="${key}"]`);
     if (!cell) {
       cell = document.createElement("td");
-      cell.className = "table-cell py-4 truncate w-[160px] extra-column";
+      cell.className = "table-cell flex py-4 truncate w-[160px] extra-column font-medium text-[14px] items-center justify-start";
       cell.dataset.key = key;
       const rowWrapper = row.querySelector("td:last-child").parentElement;
       rowWrapper.append(cell);
     }
-    cell.textContent = value;
+    
+    if (value === null || value === undefined || value === "-" || value === "—") {
+      cell.innerHTML = '<span class="text-black/40">—</span>';
+    } else {
+      cell.textContent = value;
+    }
   });
 }
 
@@ -255,14 +260,29 @@ export function updateColumns(mainTable, extraColumns) {
     let th = theadFirstRow.querySelector(`.extra-column[data-key="${columnName}"]`);
     if (!th) {
       th = document.createElement("th");
-      th.className = "group relative flex font-normal select-none items-center gap-x-1 text-left text-xs whitespace-nowrap w-[160px] extra-column";
+      th.className = "group relative font-normal select-none text-left text-xs whitespace-nowrap flex items-center gap-x-1 w-[160px] extra-column group cursor-pointer";
       th.dataset.key = columnName;
+
+      th.innerHTML = `
+        <span class="inline-flex items-center">
+          <span class="text-dark/70">${columnName}</span>
+          <div class="ml-1 shrink-0 sort-arrows">
+            <span class="text-dark/30 arrow-up">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 256 256">
+                <path d="M215.39,163.06A8,8,0,0,1,208,168H48a8,8,0,0,1-5.66-13.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,215.39,163.06Z"></path>
+              </svg>
+            </span>
+            <span class="text-dark/30 arrow-down">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 256 256" class="-mt-[5px]">
+                <path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,48,88H208a8,8,0,0,1,5.66,13.66Z"></path>
+              </svg>
+            </span>
+          </div>
+        </span>
+      `;
 
       // Only add cursor/click handler if sorting is enabled
       if (isSortingEnabled()) {
-        th.style.cursor = 'pointer';
-        th.style.userSelect = 'none';
-
         // Add click handler for sorting
         th.addEventListener('click', () => {
           handleColumnSort(th.dataset.key);
@@ -272,9 +292,6 @@ export function updateColumns(mainTable, extraColumns) {
       const theadRowWrapper = theadFirstRow.querySelector("th:last-child").parentElement;
       theadRowWrapper.append(th);
     }
-
-    // Set column text
-    th.textContent = columnName;
 
     // Add sort indicator arrow (only if sorting is enabled)
     if (isSortingEnabled()) {
