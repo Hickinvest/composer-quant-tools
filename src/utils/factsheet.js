@@ -8,6 +8,13 @@ let isUpdatingUI = false;
 let currentSortCol = null;
 let currentSortDir = 'desc';
 
+const SORT_ARROW_HTML = `
+  <span class="flex flex-col items-center justify-center gap-px pt-px ml-1 sort-arrows">
+    <span class="h-0 w-0 border-b-[4px] border-x-[3px] border-x-transparent arrow-up" style="border-bottom-color: rgba(0, 0, 0, 0.25);"></span>
+    <span class="h-0 w-0 border-t-[4px] border-x-[3px] border-x-transparent arrow-down" style="border-top-color: rgba(0, 0, 0, 0.25);"></span>
+  </span>
+`;
+
 const extraColumnMapping = {
   "Sortino Ratio": "sortino_ratio",
   "Win Rate": "win_rate",
@@ -184,7 +191,7 @@ function hideTooltip(e) {
 }
 
 function getStatsTable() {
-  const tables = document.querySelectorAll('.overflow-x-auto table');
+  const tables = document.querySelectorAll('.overflow-x-auto.border.border-black\\/16 table, .overflow-x-auto table');
   for (const table of tables) {
     const headerText = table.textContent || '';
     if (headerText.includes('Cumulative Return') && headerText.includes('Annualized Return')) {
@@ -220,11 +227,20 @@ function ensureColumnIds(statsTable) {
 
     if (!th.querySelector('.cqt-header-inner')) {
       const text = th.textContent;
+      const isFirstCol = idx === 0;
+      
       th.innerHTML = `
         <span class="inline-flex items-center cqt-header-inner">
           <span class="text-left text-[12px] font-normal leading-4 tracking-[0.24px] text-black/70 whitespace-nowrap align-middle">${text}</span>
+          ${!isFirstCol ? SORT_ARROW_HTML : ''}
         </span>
       `;
+      
+      // Add sorting listener for native columns (except the first labels column)
+      if (!isFirstCol && (nativeColumns.includes(rawText) || !th.classList.contains('extra-column'))) {
+        th.classList.add('cursor-pointer', 'select-none');
+        th.addEventListener('click', () => handleFactsheetSort(th.dataset.columnId));
+      }
     }
 
     // Initialize Tooltip ONLY for our custom columns
@@ -290,6 +306,7 @@ function updateColumnValues(statsTable) {
       th.innerHTML = `
         <span class="inline-flex items-center cqt-header-inner">
           <span class="text-left text-[12px] font-normal leading-4 tracking-[0.24px] text-black/70 whitespace-nowrap align-middle">${colName}</span>
+          ${SORT_ARROW_HTML}
         </span>
       `;
       th.addEventListener('click', () => handleFactsheetSort(colName));
@@ -405,6 +422,9 @@ function refreshTable() {
     if (currentSortCol) {
       sortFactsheetRows(table, currentSortCol, currentSortDir);
     }
+    
+    // Update arrow visual states
+    updateHeaderArrows(table);
   } finally {
     // Settle delay to avoid immediate re-triggers and catch quick React updates
     setTimeout(() => {
@@ -440,6 +460,24 @@ function sortFactsheetRows(table, colName, dir) {
   rows.forEach(row => tbody.appendChild(row));
 }
 
+function updateHeaderArrows(statsTable) {
+  const headers = statsTable.querySelectorAll('thead th');
+  headers.forEach(th => {
+    const colId = th.dataset.columnId;
+    const up = th.querySelector('.arrow-up');
+    const down = th.querySelector('.arrow-down');
+    if (!up || !down) return;
+
+    if (currentSortCol === colId) {
+      up.style.borderBottomColor = currentSortDir === 'asc' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.25)';
+      down.style.borderTopColor = currentSortDir === 'desc' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.25)';
+    } else {
+      up.style.borderBottomColor = 'rgba(0, 0, 0, 0.25)';
+      down.style.borderTopColor = 'rgba(0, 0, 0, 0.25)';
+    }
+  });
+}
+
 function isLoggedIn() {
   if (window.location.pathname.endsWith("details")) {
     return Boolean(
@@ -453,16 +491,16 @@ function isLoggedIn() {
 
 const waitForFactsheet = async () => {
   const observer = new MutationObserver(async function (mutations, mutationInstance) {
-    let container = document.querySelector('.flex.flex-wrap-reverse.items-start.justify-between');
+    let container = document.querySelector('.flex.flex-wrap-reverse.items-start.justify-between.gap-x-4.gap-y-3');
     
     if (!container) {
       const modal = document.querySelector(".factsheet-open");
-      container = modal?.querySelector('.flex.flex-wrap-reverse.items-start.justify-between');
+      container = modal?.querySelector('.flex.flex-wrap-reverse.items-start.justify-between.gap-x-4.gap-y-3');
     }
     
     if (!container && isPathOnDetailsPage()) {
       const app = document.getElementById("app");
-      container = app?.querySelector('.flex.flex-wrap-reverse.items-start.justify-between');
+      container = app?.querySelector('.flex.flex-wrap-reverse.items-start.justify-between.gap-x-4.gap-y-3');
     }
     
     const widgetAttached = Boolean(document.querySelector("#tearsheat-widget"));
@@ -489,7 +527,7 @@ const showToast = (message, isError = false) => {
 
 function renderTearsheetButton(container) {
   if (!container) {
-    container = document.querySelector('.flex.flex-wrap-reverse.items-start.justify-between');
+    container = document.querySelector('.flex.flex-wrap-reverse.items-start.justify-between.gap-x-4.gap-y-3');
   }
   if (!container) {
     return;
@@ -580,7 +618,7 @@ function renderTearsheetButton(container) {
     menu.className = "tearsheet-dropdown-menu absolute bottom-full left-0 mb-1 bg-dark rounded-md shadow-lg py-1 z-50 min-w-[120px]";
     
     // Check for Live at click time
-    const containerNow = document.querySelector('.flex.flex-wrap-reverse.items-start.justify-between');
+    const containerNow = document.querySelector('.flex.flex-wrap-reverse.items-start.justify-between.gap-x-4.gap-y-3');
     const hasLiveDataNow = containerNow?.querySelector('.flex.gap-1 button')?.innerText?.includes("Live") || 
                           document.querySelector('.flex.gap-1 button')?.innerText?.includes("Live");
     
