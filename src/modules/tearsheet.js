@@ -45,8 +45,13 @@ async function getTearsheetHtml(symphony, series_data, type, backtestData) {
     delete series_data.benchmark_series;
   }
 
-  const pyodide = await getPyodide();
   try {
+    const pyodide = await getPyodide();
+    
+    pyodide.globals.set('series_data_json', JSON.stringify(series_data));
+    pyodide.globals.set('symphony_id_val', symphony.id.replace(/'/g, "\\'"));
+    pyodide.globals.set('symphony_name_val', `${symphony.name.replace(/'/g, "\\'")} ${type}`);
+
     let tearsheetHtml = await pyodide.runPythonAsync(`
 
         import quantstats_lumi as qs
@@ -64,14 +69,14 @@ async function getTearsheetHtml(symphony, series_data, type, backtestData) {
         # Set matplotlib to use the Agg backend to avoid displaying plots this is necessary for running in a headless environment
         matplotlib.use('Agg')
 
-        symphony_id = '${symphony.id.replace(/'/g, "\\'")}'
-        symphony_name = '${symphony.name.replace(/'/g, "\\'")} ${type}'
+        symphony_id = symphony_id_val
+        symphony_name = symphony_name_val
 
         # Enable extend_pandas functionality from QuantStats
         qs.extend_pandas()
 
-        # Parse the JSON data
-        data = json.loads('''${JSON.stringify(series_data)}''')
+        # Parse the JSON data from global set value instead of embedding in template
+        data = json.loads(series_data_json)
 
 
         # Create pandas Series for each field

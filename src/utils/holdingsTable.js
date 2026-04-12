@@ -1,7 +1,8 @@
-
 let cachedQuotes = {};
 let currentSymphonyId = null;
 let isUpdatingUI = false;
+let currentSortDir = 'desc'; // 'asc' or 'desc'
+let isSortingActive = false;
 
 function getHoldingsTable() {
   const tables = document.querySelectorAll('table');
@@ -73,9 +74,44 @@ function updatePercentChangeColumn(holdingsTable) {
   let th = thead.querySelector('th[data-column-id="Today\'s Change"]');
   if (!th) {
     th = document.createElement('th');
-    th.className = 'whitespace-nowrap w-40 text-left py-2 font-medium extra-column';
+    th.className = 'py-2 text-left text-[12px] font-normal leading-4 tracking-[0.24px] text-black/70 whitespace-nowrap align-middle cursor-pointer select-none extra-column';
     th.dataset.columnId = "Today's Change";
-    th.textContent = "Today's Change";
+    
+    th.innerHTML = `
+      <div class="flex items-center gap-1">
+        <span>Today's Change</span>
+        <span class="flex flex-col items-center justify-center gap-px pt-px sort-arrows">
+          <span class="h-0 w-0 border-b-[4px] border-x-[3px] border-x-transparent arrow-up" style="border-bottom-color: rgba(0, 0, 0, 0.25);"></span>
+          <span class="h-0 w-0 border-t-[4px] border-x-[3px] border-x-transparent arrow-down" style="border-top-color: rgba(0, 0, 0, 0.25);"></span>
+        </span>
+      </div>
+    `;
+
+    th.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentSortDir = currentSortDir === 'desc' ? 'asc' : 'desc';
+      isSortingActive = true;
+      
+      // Clear native sort indicators in holdings table
+      const thead = th.closest('thead');
+      if (thead) {
+        thead.querySelectorAll('th:not(.extra-column) span[style*="border"]').forEach(arrow => {
+          arrow.style.borderBottomColor = 'rgba(0, 0, 0, 0.25)';
+          arrow.style.borderTopColor = 'rgba(0, 0, 0, 0.25)';
+        });
+      }
+      
+      refreshTable();
+    });
+
+    // Listen for native column clicks to reset our state
+    thead.addEventListener('click', (e) => {
+      const clickedTh = e.target.closest('th');
+      if (clickedTh && !clickedTh.classList.contains('extra-column')) {
+        isSortingActive = false;
+        refreshTable();
+      }
+    });
     
     const headers = Array.from(thead.querySelectorAll('th'));
     if (headers.length >= 5) {
@@ -84,6 +120,19 @@ function updatePercentChangeColumn(holdingsTable) {
       thead.insertBefore(th, headers[headers.length - 1]);
     } else {
       thead.appendChild(th);
+    }
+  }
+
+  // Update arrows in header
+  const up = th.querySelector('.arrow-up');
+  const down = th.querySelector('.arrow-down');
+  if (up && down) {
+    if (isSortingActive) {
+      up.style.borderBottomColor = currentSortDir === 'asc' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.25)';
+      down.style.borderTopColor = currentSortDir === 'desc' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.25)';
+    } else {
+      up.style.borderBottomColor = 'rgba(0, 0, 0, 0.25)';
+      down.style.borderTopColor = 'rgba(0, 0, 0, 0.25)';
     }
   }
   
@@ -145,11 +194,41 @@ function refreshTable() {
   isUpdatingUI = true;
   try {
     updatePercentChangeColumn(table);
+
+    if (isSortingActive) {
+      sortHoldingsRows(table);
+    }
   } finally {
     setTimeout(() => {
       isUpdatingUI = false;
     }, 150);
   }
+}
+
+function sortHoldingsRows(table) {
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  
+  rows.sort((a, b) => {
+    const cellA = a.querySelector('td[data-column-id="Today\'s Change"]');
+    const cellB = b.querySelector('td[data-column-id="Today\'s Change"]');
+    
+    const valA = cellA?.textContent?.trim() || "-";
+    const valB = cellB?.textContent?.trim() || "-";
+    
+    if (valA === "-") return 1;
+    if (valB === "-") return -1;
+    
+    const numA = parseFloat(valA.replace(/[^0-9.-]/g, ""));
+    const numB = parseFloat(valB.replace(/[^0-9.-]/g, ""));
+    
+    if (isNaN(numA)) return 1;
+    if (isNaN(numB)) return -1;
+    
+    return currentSortDir === 'asc' ? numA - numB : numB - numA;
+  });
+  
+  rows.forEach(row => tbody.appendChild(row));
 }
 
 function initHoldingsTable() {
