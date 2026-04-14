@@ -69,6 +69,31 @@ export function main() {
     }
   });
 
+  // Push settings updates to MAIN world when storage changes
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local') {
+      const newSettings = {};
+      for (const [key, { newValue }] of Object.entries(changes)) {
+        newSettings[key] = newValue;
+      }
+      window.postMessage({
+        type: 'SETTINGS_UPDATED',
+        settings: newSettings
+      }, '*');
+    }
+  });
+
+  // Listen for settings updates from the extension message 
+  // (legacy/backup for explicit SETTINGS_UPDATED messages)
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'SETTINGS_UPDATED') {
+      window.postMessage({
+        type: 'SETTINGS_UPDATED',
+        settings: request.settings
+      }, '*');
+    }
+  });
+
   // Initialize all components
   initTokenAndAccountUtil();
   initFactsheet();

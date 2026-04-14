@@ -90,6 +90,7 @@ const defaultSettings = {
   enableCagrReturns: false,
   enableKeepAlive: true,
   enableColumnSorting: true,
+  enableStripMetadata: false,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -273,6 +274,15 @@ async function initEnableColumnSorting() {
   });
 }
 
+async function initEnableStripMetadata() {
+  const enableStripMetadataCheckbox = document.getElementById('enableStripMetadata');
+  enableStripMetadataCheckbox.checked = currentSettings.enableStripMetadata ?? false;
+
+  enableStripMetadataCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableStripMetadata: e.target.checked });
+  });
+}
+
 function positionTooltips() {
   const tooltips = document.querySelectorAll('.tooltip-container');
   tooltips.forEach(tooltip => {
@@ -316,6 +326,7 @@ async function initializePopup() {
   await initEnableCagrReturns();
   await initEnableKeepAlive();
   await initEnableColumnSorting();
+  await initEnableStripMetadata();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }
