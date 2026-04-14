@@ -91,6 +91,7 @@ const defaultSettings = {
   enableKeepAlive: true,
   enableColumnSorting: true,
   enableStripMetadata: false,
+  enableTabTitleUpdate: true,
 };
 
 let currentSettings = { ...defaultSettings }; // Initialize with defaults
@@ -283,6 +284,15 @@ async function initEnableStripMetadata() {
   });
 }
 
+async function initEnableTabTitleUpdate() {
+  const enableTabTitleUpdateCheckbox = document.getElementById('enableTabTitleUpdate');
+  enableTabTitleUpdateCheckbox.checked = currentSettings.enableTabTitleUpdate ?? true;
+
+  enableTabTitleUpdateCheckbox.addEventListener('change', (e) => {
+    saveSettings({ enableTabTitleUpdate: e.target.checked });
+  });
+}
+
 function positionTooltips() {
   const tooltips = document.querySelectorAll('.tooltip-container');
   tooltips.forEach(tooltip => {
@@ -327,6 +337,7 @@ async function initializePopup() {
   await initEnableKeepAlive();
   await initEnableColumnSorting();
   await initEnableStripMetadata();
+  await initEnableTabTitleUpdate();
   positionTooltips(); // Initial positioning
   initEventListeners();
 }

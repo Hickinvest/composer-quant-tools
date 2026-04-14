@@ -43,6 +43,7 @@
         "utils/performanceInterceptor.js",
         "utils/liveTickerTooltip.js",
         "utils/logarithmicCharts.js",
+        "utils/tabTitleUpdater.js",
         "mainWorldBridge.js"
       ],
       "world": "MAIN",
