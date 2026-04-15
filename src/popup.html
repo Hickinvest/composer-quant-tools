@@ -1,400 +1,556 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Configure Composer Quant Tools</title>
-    <!-- // add jquery from local lib/libjs/jquery-3.6.0.min.js -->
-    <script src="lib/jslib/jquery-3.7.1.min.js"></script>
-    <script src="lib/jslib/jquery-ui.min.js"></script>
-    <link rel="stylesheet" href="lib/jslib/selectize.default.min.css" />
-    <script src="lib/jslib/selectize.min.js"></script>
-    <style>
-      :root {
-        --dark-bg: #1e1e1e;
-        --dark-element: #252525;
-        --gray-200: #e5e7eb;
-        --gray-400: #9ca3af;
-        --gray-500: #6b7280;
-        --gray-700: #374151;
-        --teal-500: #14b8a6;
-        --dark-grey: #5c5c5c;
-      }
-      body {
-        font-family: Arial, sans-serif;
-        background-color: var(--dark-bg);
-        color: var(--gray-200);
-        padding: 1rem;
-        width: 20rem;
-        margin: 0;
-        min-height: 600px;
-        min-width: 460px;
-      }
-      .input-container {
-        margin-bottom: 20px;
-      }
-      .input-container label {
-        display: block;
-        margin-bottom: 5px;
-        font-size: 14px;
-        color: var(--gray-400);
-      }
-      .disabled-label {
-        color: var(--gray-500) !important;
-      }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Configure Composer Quant Tools</title>
+        <!-- // add jquery from local lib/libjs/jquery-3.6.0.min.js -->
+        <script src="lib/jslib/jquery-3.7.1.min.js"></script>
+        <script src="lib/jslib/jquery-ui.min.js"></script>
+        <link rel="stylesheet" href="lib/jslib/selectize.default.min.css" />
+        <script src="lib/jslib/selectize.min.js"></script>
+        <style>
+            :root {
+                --dark-bg: #1e1e1e;
+                --dark-element: #252525;
+                --gray-200: #e5e7eb;
+                --gray-400: #9ca3af;
+                --gray-500: #6b7280;
+                --gray-700: #374151;
+                --teal-500: #14b8a6;
+                --dark-grey: #5c5c5c;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                background-color: var(--dark-bg);
+                color: var(--gray-200);
+                padding: 1rem;
+                width: 20rem;
+                margin: 0;
+                min-height: 600px;
+                min-width: 460px;
+            }
+            .input-container {
+                margin-bottom: 20px;
+            }
+            .input-container label {
+                display: block;
+                margin-bottom: 5px;
+                font-size: 14px;
+                color: var(--gray-400);
+            }
+            .disabled-label {
+                color: var(--gray-500) !important;
+            }
 
-      .input-container-height {
-        height: calc(100% - 80px);
-      }
+            .input-container-height {
+                height: calc(100% - 80px);
+            }
 
-      .api-url-container {
-        margin-bottom: 20px;
-      }
+            .api-url-container {
+                margin-bottom: 20px;
+            }
 
-      .api-url-input {
-        width: calc(100% - 20px);
-        padding: 8px;
-        margin-top: 5px;
-        background-color: #2b2b2b;
-        border: 1px solid #444444;
-        color: #e0e0e0;
-        border-radius: 4px;
-      }
+            .api-url-input {
+                width: calc(100% - 20px);
+                padding: 8px;
+                margin-top: 5px;
+                background-color: #2b2b2b;
+                border: 1px solid #444444;
+                color: #e0e0e0;
+                border-radius: 4px;
+            }
 
-      .checkbox-label {
-        display: flex !important;
-        align-items: center;
-        margin-bottom: 10px;
-      }
+            .checkbox-label {
+                display: flex !important;
+                align-items: center;
+                margin-bottom: 10px;
+            }
 
-      .checkbox-label input[type="checkbox"] {
-        margin-left: 10px;
-        width: 16px;
-        height: 16px;
-        cursor: pointer;
-        accent-color: var(--teal-500);
-      }
+            .checkbox-label input[type="checkbox"] {
+                margin-left: 10px;
+                width: 16px;
+                height: 16px;
+                cursor: pointer;
+                accent-color: var(--teal-500);
+            }
 
-      .selectize-input.dropdown-active::before {
-        background-color: transparent;
-      }
+            .selectize-input.dropdown-active::before {
+                background-color: transparent;
+            }
 
-      /* Dark Mode Styles */
-      .selectize-control .selectize-input,
-      .selectize-dropdown {
-        background-color: #2b2b2b;
-        color: #e0e0e0;
-        border-color: #444444;
-      }
+            /* Dark Mode Styles */
+            .selectize-control .selectize-input,
+            .selectize-dropdown {
+                background-color: #2b2b2b;
+                color: #e0e0e0;
+                border-color: #444444;
+            }
 
-      .selectize-dropdown .active {
-        background-color: #3a3a3a;
-        color: #ffffff;
-      }
+            .selectize-dropdown .active {
+                background-color: #3a3a3a;
+                color: #ffffff;
+            }
 
-      .selectize-input input {
-        color: #e0e0e0;
-      }
+            .selectize-input input {
+                color: #e0e0e0;
+            }
 
-      .selectize-control .selectize-input::after {
-        border-color: #e0e0e0 transparent transparent transparent;
-      }
+            .selectize-control .selectize-input::after {
+                border-color: #e0e0e0 transparent transparent transparent;
+            }
 
-      .selectize-control .selectize-input.dropdown-active::after {
-        border-color: transparent transparent #e0e0e0 transparent;
-      }
-      .selectize-dropdown .active:not(.selected) {
-        background: #393939;
-        color: #ffffff;
-      }
+            .selectize-control .selectize-input.dropdown-active::after {
+                border-color: transparent transparent #e0e0e0 transparent;
+            }
+            .selectize-dropdown .active:not(.selected) {
+                background: #393939;
+                color: #ffffff;
+            }
 
-      /* Match selectize selections to checkbox teal color */
-      .selectize-control.multi .selectize-input [data-value] {
-        background-color: var(--teal-500);
-        border-color: var(--teal-500);
-        color: white;
-      }
-      
-      .selectize-control.multi .selectize-input [data-value].active {
-        background-color: var(--teal-500);
-        border-color: var(--teal-500);
-      }
-      
-      .selectize-dropdown .option.active {
-        background-color: rgba(20, 184, 166, 0.2);
-      }
-      
-      .selectize-input.focus {
-        border-color: var(--teal-500);
-      }
+            /* Match selectize selections to checkbox teal color */
+            .selectize-control.multi .selectize-input [data-value] {
+                background-color: var(--teal-500);
+                border-color: var(--teal-500);
+                color: white;
+            }
 
-      /* Style the multi-select container */
-      .selectize-control.multi .selectize-input {
-        background-color: #2b2b2b;
-        border: 1px solid #444444;
-        padding: 6px 8px;
-      }
-      
-      .selectize-control.multi .selectize-input.focus {
-        border-color: var(--teal-500);
-        box-shadow: 0 0 0 1px var(--teal-500);
-      }
+            .selectize-control.multi .selectize-input [data-value].active {
+                background-color: var(--teal-500);
+                border-color: var(--teal-500);
+            }
 
-      .selectize-control.multi .selectize-input [data-value], 
-      .selectize-control.multi .selectize-input [data-value].active {
-        background-image: none;
-      }
+            .selectize-dropdown .option.active {
+                background-color: rgba(20, 184, 166, 0.2);
+            }
 
-      /* Custom tooltip styles */
-      .tooltip-container {
-        position: relative;
-        display: inline-block;
-      }
+            .selectize-input.focus {
+                border-color: var(--teal-500);
+            }
 
-      .tooltip-icon {
-        margin-left: 5px;
-        width: 14px;
-        height: 14px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        vertical-align: middle;
-      }
-      .tooltip-icon svg {
-        width: 100%;
-        height: 100%;
-        margin-top: -2px;
-      }
-      .tooltip-icon svg path {
-        stroke: var(--gray-400);
-      }
+            /* Style the multi-select container */
+            .selectize-control.multi .selectize-input {
+                background-color: #2b2b2b;
+                border: 1px solid #444444;
+                padding: 6px 8px;
+            }
 
-      .tooltip-text {
-        visibility: hidden;
-        position: absolute;
-        background-color: var(--dark-element);
-        border: 2px solid var(--dark-grey);
-        color: var(--gray-200);
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        line-height: 1.4;
-        white-space: normal;
-        width: 180px;
-        opacity: 0;
-        transition: opacity 0.3s;
-        z-index: 1000;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        left: -115px;
-        top: 15px;
-        overflow: visible;
-      }
+            .selectize-control.multi .selectize-input.focus {
+                border-color: var(--teal-500);
+                box-shadow: 0 0 0 1px var(--teal-500);
+            }
 
-      .tooltip-container {
-        position: relative;
-      }
+            .selectize-control.multi .selectize-input [data-value],
+            .selectize-control.multi .selectize-input [data-value].active {
+                background-image: none;
+            }
 
-      .tooltip-container:hover .tooltip-text {
-        visibility: visible;
-        opacity: 1;
-      }
+            /* Custom tooltip styles */
+            .tooltip-container {
+                position: relative;
+                display: inline-block;
+            }
 
-      /* Smart positioning */
-      .tooltip-top .tooltip-text {
-        top: auto;
-        bottom: 125%;
-        left: 50%;
-        transform: translateX(-50%);
-      }
+            .tooltip-icon {
+                margin-left: 5px;
+                width: 14px;
+                height: 14px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                vertical-align: middle;
+            }
+            .tooltip-icon svg {
+                width: 100%;
+                height: 100%;
+                margin-top: -2px;
+            }
+            .tooltip-icon svg path {
+                stroke: var(--gray-400);
+            }
 
-      .tooltip-bottom .tooltip-text {
-        top: 125%;
-        bottom: auto;
-        left: 50%;
-        transform: translateX(-50%);
-      }
+            .tooltip-text {
+                visibility: hidden;
+                position: absolute;
+                background-color: var(--dark-element);
+                border: 2px solid var(--dark-grey);
+                color: var(--gray-200);
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                line-height: 1.4;
+                white-space: normal;
+                width: 180px;
+                opacity: 0;
+                transition: opacity 0.3s;
+                z-index: 1000;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+                left: -115px;
+                top: 15px;
+                overflow: visible;
+            }
 
-      .tooltip-left .tooltip-text {
-        top: 50%;
-        bottom: auto;
-        left: auto;
-        right: 125%;
-        transform: translateY(-50%);
-      }
+            .tooltip-container {
+                position: relative;
+            }
 
-      .tooltip-right .tooltip-text {
-        top: 50%;
-        bottom: auto;
-        left: 125%;
-        right: auto;
-        transform: translateY(-50%);
-      }
+            .tooltip-container:hover .tooltip-text {
+                visibility: visible;
+                opacity: 1;
+            }
 
-    </style>
-  </head>
-  <body>
-    <div class="input-container-height">
-      <div class="input-container">
-        <label for="selectBox" class="headers-select-label">
-          <span class="label-text">
-            Portfolio Page Columns
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">Select the columns you want to display on the portfolio page. You may also drag to rearrange their order.</span>
-          </span>
-        </label>
-        <select id="selectBox" class="headers-select-box" multiple></select>
-      </div>
+            /* Smart positioning */
+            .tooltip-top .tooltip-text {
+                top: auto;
+                bottom: 125%;
+                left: 50%;
+                transform: translateX(-50%);
+            }
 
-      <div class="input-container">
-        <label for="userDefinedUploadUrl">
-          <span class="label-text">
-            Live quant stats upload url
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">If you would like to upload your live Quantstats data to a server, you may enter the URL for your server here. If this is left blank nothing will happen.</span>
-          </span>
-        </label>
-        <input type="text" id="userDefinedUploadUrl" class="api-url-input" placeholder="Enter API URL" />
-      </div>
+            .tooltip-bottom .tooltip-text {
+                top: 125%;
+                bottom: auto;
+                left: 50%;
+                transform: translateX(-50%);
+            }
 
-      <div class="input-container">
-        <label for="enableTooltips" class="checkbox-label">
-          <input type="checkbox" id="enableTooltips" />&nbsp;
-          <span class="label-text">
-            Enable Tooltips on Ticker Symbols
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">When enabled, tooltips describing the ticker symbol will be displayed when a ticker is hovered.</span>
-          </span>
-        </label>
+            .tooltip-left .tooltip-text {
+                top: 50%;
+                bottom: auto;
+                left: auto;
+                right: 125%;
+                transform: translateY(-50%);
+            }
 
-        <label for="enableCmdClick" class="checkbox-label">
-          <input type="checkbox" id="enableCmdClick" />&nbsp;
-          <span class="label-text">
-            Enable CMD + Click on Tickers
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">When enabled, Command + Click on a ticker symbol opens its Yahoo Finance profile page in a new tab.</span>
-          </span>
-        </label>
+            .tooltip-right .tooltip-text {
+                top: 50%;
+                bottom: auto;
+                left: 125%;
+                right: auto;
+                transform: translateY(-50%);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="input-container-height">
+            <div class="input-container">
+                <label for="selectBox" class="headers-select-label">
+                    <span class="label-text"> Portfolio Page Columns </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >Select the columns you want to display on the
+                            portfolio page. You may also drag to rearrange their
+                            order.</span
+                        >
+                    </span>
+                </label>
+                <select
+                    id="selectBox"
+                    class="headers-select-box"
+                    multiple
+                ></select>
+            </div>
 
-        <label for="enableYtdReturns" class="checkbox-label">
-          <input type="checkbox" id="enableYtdReturns" />&nbsp;
-          <span class="label-text">
-            Enable YTD Return Reports
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">When enabled, YTD return statistics will be calculated and displayed on the portfolio page.</span>
-          </span>
-        </label>
+            <div class="input-container">
+                <label for="userDefinedUploadUrl">
+                    <span class="label-text">
+                        Live quant stats upload url
+                    </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >If you would like to upload your live Quantstats
+                            data to a server, you may enter the URL for your
+                            server here. If this is left blank nothing will
+                            happen.</span
+                        >
+                    </span>
+                </label>
+                <input
+                    type="text"
+                    id="userDefinedUploadUrl"
+                    class="api-url-input"
+                    placeholder="Enter API URL"
+                />
+            </div>
 
-        <label for="enableCagrReturns" class="checkbox-label">
-          <input type="checkbox" id="enableCagrReturns" />&nbsp;
-          <span class="label-text">
-            Enable CAGR Return Reports
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">When enabled, Portfolio CAGR statistics will be calculated and displayed on the portfolio page.</span>
-          </span>
-        </label>
+            <div class="input-container">
+                <label for="enableTooltips" class="checkbox-label">
+                    <input type="checkbox" id="enableTooltips" />&nbsp;
+                    <span class="label-text">
+                        Enable Tooltips on Ticker Symbols
+                    </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, tooltips describing the ticker symbol
+                            will be displayed when a ticker is hovered.</span
+                        >
+                    </span>
+                </label>
 
-        <label for="enableKeepAlive" class="checkbox-label">
-          <input type="checkbox" id="enableKeepAlive" />&nbsp;
-          <span class="label-text">
-            Keep Service Worker Alive
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">When enabled, prevents the service worker from idling, keeping Pyodide loaded in memory for faster quant stats reports.</span>
-          </span>
-        </label>
+                <label for="enableCmdClick" class="checkbox-label">
+                    <input type="checkbox" id="enableCmdClick" />&nbsp;
+                    <span class="label-text">
+                        Enable CMD + Click on Tickers
+                    </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, Command + Click on a ticker symbol
+                            opens its Yahoo Finance profile page in a new
+                            tab.</span
+                        >
+                    </span>
+                </label>
 
-        <label for="enableColumnSorting" class="checkbox-label">
-          <input type="checkbox" id="enableColumnSorting" />&nbsp;
-          <span class="label-text">
-            Enable Column Sorting
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">When enabled, allows sorting by custom columns on the portfolio page. WARNING: This may cause Composer to throw a page level error when sorting normal columns. If this happens you will need to reload the page. Sorting may cause issues with the expandable "Holdings / History" pane - the pane may appear in the wrong position or move to the bottom when sorting is applied.</span>
-          </span>
-        </label>
+                <label for="enableYtdReturns" class="checkbox-label">
+                    <input type="checkbox" id="enableYtdReturns" />&nbsp;
+                    <span class="label-text"> Enable YTD Return Reports </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, YTD return statistics will be
+                            calculated and displayed on the portfolio
+                            page.</span
+                        >
+                    </span>
+                </label>
 
-        <label for="enableStripMetadata" class="checkbox-label">
-          <input type="checkbox" id="enableStripMetadata" />&nbsp;
-          <span class="label-text">
-            Strip Metadata in Editor
-          </span>
-          <span class="tooltip-container">
-            <span class="tooltip-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="Warning / Info">
-                  <path id="Vector" d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-              </svg>
-            </span>
-            <span class="tooltip-text">When enabled, saving a symphony in the editor will remove 'name' and 'exchange' metadata from asset nodes. Useful for larger symphonies as it allows you to save them without hitting the 2MB limit</span>
-          </span>
-        </label>
-      </div>
-           
-    </div>
+                <label for="enableCagrReturns" class="checkbox-label">
+                    <input type="checkbox" id="enableCagrReturns" />&nbsp;
+                    <span class="label-text"> Enable CAGR Return Reports </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, Portfolio CAGR statistics will be
+                            calculated and displayed on the portfolio
+                            page.</span
+                        >
+                    </span>
+                </label>
 
-    <script src="popup.js"></script>
-  </body>
+                <label for="enableKeepAlive" class="checkbox-label">
+                    <input type="checkbox" id="enableKeepAlive" />&nbsp;
+                    <span class="label-text"> Keep Service Worker Alive </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, prevents the service worker from
+                            idling, keeping Pyodide loaded in memory for faster
+                            quant stats reports.</span
+                        >
+                    </span>
+                </label>
+
+                <label for="enableColumnSorting" class="checkbox-label">
+                    <input type="checkbox" id="enableColumnSorting" />&nbsp;
+                    <span class="label-text"> Enable Column Sorting </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, allows sorting by custom columns on
+                            the portfolio page. WARNING: This may cause Composer
+                            to throw a page level error when sorting normal
+                            columns. If this happens you will need to reload the
+                            page. Sorting may cause issues with the expandable
+                            "Holdings / History" pane - the pane may appear in
+                            the wrong position or move to the bottom when
+                            sorting is applied.</span
+                        >
+                    </span>
+                </label>
+
+                <label for="enableStripMetadata" class="checkbox-label">
+                    <input type="checkbox" id="enableStripMetadata" />&nbsp;
+                    <span class="label-text"> Strip Metadata in Editor </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, saving a symphony in the editor will
+                            remove 'name' and 'exchange' metadata from asset
+                            nodes. Useful for larger symphonies as it allows you
+                            to save them without hitting the 2MB limit</span
+                        >
+                    </span>
+                </label>
+
+                <label for="enableTabTitleUpdate" class="checkbox-label">
+                    <input type="checkbox" id="enableTabTitleUpdate" />&nbsp;
+                    <span class="label-text"> Enable Tab Title Update </span>
+                    <span class="tooltip-container">
+                        <span class="tooltip-icon">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
+                                <g id="Warning / Info">
+                                    <path
+                                        id="Vector"
+                                        d="M12 11V16M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12.0498 8V8.1L11.9502 8.1002V8H12.0498Z"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </g>
+                            </svg>
+                        </span>
+                        <span class="tooltip-text"
+                            >When enabled, the tab title will show the daily
+                            percent change (e.g., +1.23%) when on the portfolio
+                            page.</span
+                        >
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <script src="popup.js"></script>
+    </body>
 </html>
