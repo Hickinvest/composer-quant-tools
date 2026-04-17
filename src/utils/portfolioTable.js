@@ -30,7 +30,9 @@ export function setExtraColumns(columns) {
 
 export const startPortfolioTableInterval = async () => {
   const checkInterval = setInterval(async () => {
-    if (window.location.pathname !== "/portfolio") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const view = urlParams.get('view');
+    if (window.location.pathname !== "/portfolio" || (view && view !== 'symphonies')) return;
     const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
     const portfolioChart = document.querySelector('[data-highcharts-chart], .border-graph-axislines');
     const mainTableContent = document.querySelectorAll("main :not(.tv-lightweight-charts) > table td");
@@ -301,7 +303,9 @@ export function updateColumns(mainTable, extraColumns) {
 }
 
 export function onScrollUpdateTableHeaderAndNav() {
-  if (window.location.pathname !== "/portfolio") {
+  const urlParams = new URLSearchParams(window.location.search);
+  const view = urlParams.get('view');
+  if (window.location.pathname !== "/portfolio" || (view && view !== 'symphonies')) {
     return;
   }
   const mainTable = document.querySelector("main :not(.tv-lightweight-charts) > table");
