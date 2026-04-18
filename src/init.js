@@ -2,6 +2,8 @@ import { initTokenAndAccountUtil } from './utils/tokenAndAccountUtil.js';
 import { initFactsheet } from './utils/factsheet.js';
 import { initPortfolio } from './portfolio.js';
 import { initHoldingsTableModule } from './utils/holdingsTable.js';
+import { initWatchlistSortModule } from './utils/watchlistSort.js';
+import { initDraftsBulkDeleteModule } from './utils/draftsBulkDelete.js';
 
 export function main() {
   // Listen for messages from the MAIN world
@@ -99,7 +101,9 @@ export function main() {
   initFactsheet();
   initPortfolio();
   initHoldingsTableModule();
-  
+  initWatchlistSortModule();
+  initDraftsBulkDeleteModule();
+
   // Signal that init is ready
   window.postMessage({ type: 'INIT_READY' }, '*');
 }
