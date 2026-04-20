@@ -51,7 +51,12 @@ const COLUMN_VALUE_GETTERS = {
   name: (s) => (s.name || "").toLowerCase(),
   todayschange: (s) => (typeof s._todaysChange === "number" ? s._todaysChange : null),
   watchedsince: (s) => (s.watched_since ? new Date(s.watched_since).getTime() : null),
-  outofsampledate: () => null, // not in watchlist API
+  outofsampledate: (s) => {
+    const raw = s.last_semantic_update_at;
+    if (!raw) return null;
+    const t = new Date(raw.split("[")[0]).getTime();
+    return isNaN(t) ? null : t;
+  },
   annualizedreturn: (s) => s.annualized_rate_of_return ?? null,
   cumulativereturn: (s) => s.simple_return ?? null,
   sharperatio: (s) => s.sharpe_ratio ?? null,
@@ -545,7 +550,9 @@ function renderRow(symphony, colMap, templateRow) {
   const { text: tcText, color: tcColor } = fmtTodaysChange(symphony._todaysChange);
   setCellTextPreserveStyle(cells[colMap.todayschange], tcText, tcColor);
   setCellTextPreserveStyle(cells[colMap.watchedsince], fmtDate(symphony.watched_since));
-  setCellTextPreserveStyle(cells[colMap.outofsampledate], "—");
+  const oosRaw = symphony.last_semantic_update_at;
+  const oosIso = oosRaw ? oosRaw.split("[")[0] : null;
+  setCellTextPreserveStyle(cells[colMap.outofsampledate], fmtDate(oosIso));
   setCellTextPreserveStyle(
     cells[colMap.annualizedreturn],
     fmtPercent((symphony.annualized_rate_of_return ?? 0) * 100, 1)
